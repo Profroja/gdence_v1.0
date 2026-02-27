@@ -291,6 +291,9 @@
       gap: 14px;
       margin-bottom: 18px;
     }
+    .stats-3col {
+      grid-template-columns: repeat(3, 1fr);
+    }
     .stat {
       background: var(--white);
       border: 1px solid var(--border);
@@ -501,6 +504,7 @@
     /* ─── RESPONSIVE ─── */
     @media (max-width: 1100px) {
       .stats { grid-template-columns: repeat(2, 1fr); }
+      .stats-3col { grid-template-columns: repeat(2, 1fr); }
       .row2  { grid-template-columns: 1fr; }
     }
     @media (max-width: 860px) {
@@ -514,11 +518,13 @@
     }
     @media (max-width: 560px) {
       .stats { grid-template-columns: 1fr 1fr; }
+      .stats-3col { grid-template-columns: 1fr 1fr; }
       .topbar-search { display: none; }
       .hd-btns .btn-outline { display: none; }
     }
     @media (max-width: 380px) {
       .stats { grid-template-columns: 1fr; }
+      .stats-3col { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -565,11 +571,11 @@
     </div>
 
     <!-- Stat cards -->
-    <div class="stats" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stats stats-3col">
       <div class="stat">
         <div class="stat-top">
           <span class="stat-label">Sales Today</span>
-          <div class="stat-icon si-b">�</div>
+          <div class="stat-icon si-b">💰</div>
         </div>
         <div class="stat-val">{{ today_sales|default:"0" }} TZS</div>
         <div class="stat-sub"><span class="grey">{{ today_date|date:"d M Y" }}</span></div>
@@ -587,7 +593,7 @@
       <div class="stat">
         <div class="stat-top">
           <span class="stat-label">Sales This Year</span>
-          <div class="stat-icon si-p">�</div>
+          <div class="stat-icon si-p">📈</div>
         </div>
         <div class="stat-val">{{ year_sales|default:"0" }} TZS</div>
         <div class="stat-sub"><span class="grey">{{ current_year|default:"2024" }}</span></div>
@@ -596,7 +602,7 @@
     </div>
 
     <!-- Products Summary -->
-    <div class="stats" style="grid-template-columns: repeat(3, 1fr); margin-top: 18px;">
+    <div class="stats stats-3col" style="margin-top: 18px;">
       <div class="stat">
         <div class="stat-top">
           <span class="stat-label">Total Products</span>
