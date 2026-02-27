@@ -11,12 +11,12 @@ def dashboard(request):
         messages.error(request, 'You do not have permission to access this page')
         return redirect('login')
     
-    # Total distinct product names across all types
-    total_products = (
-        NewSparePart.objects.filter(is_active=True).count() +
-        UsedSparePart.objects.filter(is_active=True).count() +
-        Component.objects.filter(is_active=True).count()
-    )
+    # Count new and used parts (excluding components)
+    new_parts_count = NewSparePart.objects.filter(is_active=True).count()
+    used_parts_count = UsedSparePart.objects.filter(is_active=True).count()
+    
+    # Total products (excluding components)
+    total_products = new_parts_count + used_parts_count
 
     # Total stock value across all types
     new_value = NewSparePart.objects.filter(is_active=True).aggregate(
@@ -38,6 +38,8 @@ def dashboard(request):
     context = {
         'user': request.user,
         'total_products': total_products,
+        'new_parts_count': new_parts_count,
+        'used_parts_count': used_parts_count,
         'total_stock_value': total_stock_value,
     }
     

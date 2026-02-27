@@ -6,14 +6,14 @@
 {% block extra_css %}
     .sales-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
         gap: 24px;
     }
 
     .sales-widget {
         background: var(--white);
-        border-radius: 16px;
-        padding: 32px;
+        border-radius: 12px;
+        padding: 20px;
         box-shadow: var(--shadow);
         border: 1px solid var(--border-color);
         transition: all 0.3s ease;
@@ -26,7 +26,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 4px;
+        width: 3px;
         height: 100%;
         background: var(--accent-blue);
         transform: scaleY(0);
@@ -34,7 +34,7 @@
     }
 
     .sales-widget:hover {
-        transform: translateY(-4px);
+        transform: translateY(-2px);
         box-shadow: var(--shadow-lg);
     }
 
@@ -43,26 +43,26 @@
     }
 
     .sales-widget.today {
-        border-top: 3px solid #22C55E;
+        border-top: 2px solid #22C55E;
     }
 
     .sales-widget.month {
-        border-top: 3px solid #3B82F6;
+        border-top: 2px solid #3B82F6;
     }
 
     .sales-widget.year {
-        border-top: 3px solid #A855F7;
+        border-top: 2px solid #A855F7;
     }
 
     .widget-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
     }
 
     .widget-title {
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--text-gray);
         text-transform: uppercase;
@@ -70,13 +70,13 @@
     }
 
     .widget-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        font-size: 18px;
     }
 
     .sales-widget.today .widget-icon {
@@ -95,15 +95,15 @@
     }
 
     .widget-value {
-        font-size: 36px;
+        font-size: 28px;
         font-weight: 800;
         color: var(--text-dark);
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         font-family: 'Outfit', sans-serif;
     }
 
     .widget-label {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--text-gray);
         font-weight: 500;
     }
@@ -111,12 +111,12 @@
     .widget-change {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 13px;
+        gap: 5px;
+        font-size: 11px;
         font-weight: 600;
-        margin-top: 12px;
-        padding: 6px 12px;
-        border-radius: 6px;
+        margin-top: 10px;
+        padding: 5px 10px;
+        border-radius: 5px;
         width: fit-content;
     }
 
@@ -157,7 +157,7 @@
                 </div>
             </div>
             <div class="widget-value">{{ total_products|default:"0"|intcomma }}</div>
-            <div class="widget-label">Distinct product names in stock</div>
+            <div class="widget-label">New + Used parts (no components)</div>
             <div class="widget-change positive">
                 <i class="fas fa-check-circle"></i>
                 <span>Products</span>
@@ -165,18 +165,50 @@
         </div>
 
         <!-- Total Stock Value -->
-        <div class="sales-widget month">
+        <div class="sales-widget today">
             <div class="widget-header">
                 <span class="widget-title">Total Stock Value</span>
                 <div class="widget-icon">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
             </div>
-            <div class="widget-value" data-value="{{ total_stock_value|default:"0" }}">Tsh {{ total_stock_value|default:"0" }}</div>
+            <div class="widget-value" data-value="{{ total_stock_value|default:"0" }}">Tsh {{ total_stock_value|default:"0"|floatformat:2|intcomma }}</div>
             <div class="widget-label">Combined value of all stock</div>
             <div class="widget-change positive">
                 <i class="fas fa-chart-line"></i>
                 <span>Value</span>
+            </div>
+        </div>
+
+        <!-- New Parts -->
+        <div class="sales-widget month">
+            <div class="widget-header">
+                <span class="widget-title">New Parts</span>
+                <div class="widget-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ new_parts_count|default:"0"|intcomma }}</div>
+            <div class="widget-label">Brand new spare parts</div>
+            <div class="widget-change positive">
+                <i class="fas fa-box"></i>
+                <span>Available</span>
+            </div>
+        </div>
+
+        <!-- Used Parts -->
+        <div class="sales-widget year">
+            <div class="widget-header">
+                <span class="widget-title">Used Parts</span>
+                <div class="widget-icon">
+                    <i class="fas fa-recycle"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ used_parts_count|default:"0"|intcomma }}</div>
+            <div class="widget-label">Second-hand spare parts</div>
+            <div class="widget-change positive">
+                <i class="fas fa-sync-alt"></i>
+                <span>Available</span>
             </div>
         </div>
     </div>
