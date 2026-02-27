@@ -1,0 +1,403 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Gdence Auto Spare Parts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            overflow: hidden;
+        }
+
+        .login-wrapper {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Left Side - Brand Section */
+        .brand-section {
+            flex: 1;
+            background: linear-gradient(135deg, #d35400 0%, #e67e22 50%, #f39c12 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+
+        .brand-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .brand-icon-container {
+            position: relative;
+            margin-bottom: 40px;
+            display: inline-block;
+        }
+
+        .car-icon {
+            font-size: 12em;
+            color: white;
+            text-shadow: 0 8px 30px rgba(0,0,0,0.4);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .spanner-icon {
+            position: absolute;
+            font-size: 6em;
+            color: white;
+            bottom: -20px;
+            right: -30px;
+            transform: rotate(-45deg);
+            text-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            animation: rotate-spanner 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes rotate-spanner {
+            0%, 100% { transform: rotate(-45deg); }
+            50% { transform: rotate(-30deg); }
+        }
+
+        .brand-logo {
+            font-size: 4.5em;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            letter-spacing: -2px;
+        }
+
+        .brand-tagline {
+            font-size: 1.3em;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .brand-divider {
+            width: 80px;
+            height: 4px;
+            background: white;
+            margin: 30px auto;
+            border-radius: 2px;
+        }
+
+        /* Right Side - Form Section */
+        .form-section {
+            flex: 1;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            background: #2d2d2d;
+            padding: 35px 35px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #d35400, #e67e22, #f39c12);
+        }
+
+        .login-header {
+            margin-bottom: 30px;
+        }
+
+        .login-header h2 {
+            color: #e67e22;
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            color: #999;
+            font-size: 0.95em;
+            font-weight: 300;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ccc;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        .form-group i {
+            font-size: 1.1em;
+            color: #e67e22;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            background: #2d2d2d;
+            border: 2px solid #3d3d3d;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95em;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #e67e22;
+            background: #333;
+            box-shadow: 0 0 0 4px rgba(230, 126, 34, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .login-btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .login-btn:hover:before {
+            left: 100%;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(230, 126, 34, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+
+        /* Responsive Design */
+        @media (max-width: 968px) {
+            .login-wrapper {
+                flex-direction: column;
+            }
+
+            .brand-section {
+                padding: 40px 30px;
+                min-height: 40vh;
+            }
+
+            .car-icon {
+                font-size: 8em;
+            }
+
+            .spanner-icon {
+                font-size: 4em;
+                bottom: -10px;
+                right: -20px;
+            }
+
+            .brand-logo {
+                font-size: 3em;
+            }
+
+            .brand-tagline {
+                font-size: 1em;
+            }
+
+            .form-section {
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .brand-section {
+                padding: 30px 20px;
+            }
+
+            .car-icon {
+                font-size: 6em;
+            }
+
+            .spanner-icon {
+                font-size: 3em;
+                bottom: -5px;
+                right: -15px;
+            }
+
+            .brand-icon-container {
+                margin-bottom: 30px;
+            }
+
+            .brand-logo {
+                font-size: 2.2em;
+            }
+
+            .brand-tagline {
+                font-size: 0.9em;
+            }
+
+            .form-section {
+                padding: 30px 20px;
+            }
+
+            .login-header h2 {
+                font-size: 2em;
+            }
+
+            .login-header p {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <!-- Left Side - Brand Section -->
+        <div class="brand-section">
+            <div class="brand-content">
+                <h1 class="brand-logo">Gdence Auto<br>Spare Parts</h1>
+                <div class="brand-divider"></div>
+                <p class="brand-tagline">Quality Parts, Trusted Service</p>
+                <div class="brand-icon-container">
+                    <i class="fas fa-car car-icon"></i>
+                    <i class="fas fa-wrench spanner-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Form Section -->
+        <div class="form-section">
+            <div class="login-container">
+                <div class="login-header">
+                    <h2>Welcome Back</h2>
+                    <p>Please login to your account</p>
+                </div>
+
+                <form method="POST" class="login-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="username">
+                            <i class="fas fa-user"></i>
+                            Username
+                        </label>
+                        <input type="text" id="username" name="username" required 
+                               placeholder="Enter your username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">
+                            <i class="fas fa-lock"></i>
+                            Password
+                        </label>
+                        <input type="password" id="password" name="password" required
+                               placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="login-btn">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Display Django messages using SweetAlert
+        {% if messages %}
+            {% for message in messages %}
+                Swal.fire({
+                    icon: '{% if message.tags == "error" %}error{% elif message.tags == "success" %}success{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
+                    title: '{% if message.tags == "error" %}Kosa!{% elif message.tags == "success" %}Hongera!{% elif message.tags == "warning" %}Onyo!{% else %}Taarifa{% endif %}',
+                    text: '{{ message|escapejs }}',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+            {% endfor %}
+        {% endif %}
+    </script>
+</body>
+</html> 

@@ -1,0 +1,60 @@
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">🚗</div>
+    <span class="logo-name">Gdence<br>Autospare Parts</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="{% url 'manager:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <i class="fas fa-th-large"></i>
+      Dashboard
+    </a>
+    <a href="{% url 'manager:staff_list' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_list' %}active{% endif %}">
+      <i class="fas fa-users"></i>
+      Staff
+    </a>
+
+    <a href="{% url 'manager:products' %}" class="nav-link {% if request.resolver_match.url_name == 'products' %}active{% endif %}">
+      <i class="fas fa-box"></i>
+      Products
+    </a>
+    <a href="{% url 'manager:all_sales' %}" class="nav-link {% if request.resolver_match.url_name == 'all_sales' %}active{% endif %}">
+      <i class="fas fa-shopping-cart"></i>
+      All Sales
+    </a>
+    <a href="{% url 'manager:car_diagnosing' %}" class="nav-link {% if request.resolver_match.url_name == 'car_diagnosing' %}active{% endif %}">
+      <i class="fas fa-car-crash"></i>
+      Car Diagnosing
+    </a>
+    <a href="{% url 'manager:customer_debts' %}" class="nav-link {% if request.resolver_match.url_name == 'customer_debts' %}active{% endif %}">
+      <i class="fas fa-file-invoice-dollar"></i>
+      Customer Debts
+    </a>
+    <a href="{% url 'manager:expenditure' %}" class="nav-link {% if request.resolver_match.url_name == 'expenditure' %}active{% endif %}">
+      <i class="fas fa-receipt"></i>
+      Expenditure
+    </a>
+    <a href="{% url 'manager:opening_balance' %}" class="nav-link {% if request.resolver_match.url_name == 'opening_balance' %}active{% endif %}">
+      <i class="fas fa-wallet"></i>
+      Opening Balance
+    </a>
+    <a href="{% url 'manager:funga_hesabu' %}" class="nav-link {% if request.resolver_match.url_name == 'funga_hesabu' %}active{% endif %}">
+      <i class="fas fa-calculator"></i>
+      Funga Hesabu
+    </a>
+
+    <a href="{% url 'logout' %}" class="nav-link">
+      <i class="fas fa-sign-out-alt"></i>
+      Logout
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-ava">{{ request.user.first_name.0|default:"U" }}{{ request.user.last_name.0|default:"" }}</div>
+    <div class="user-details">
+      <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+      <div class="user-role">{{ request.user.role|title }}</div>
+    </div>
+  </div>
+</aside>

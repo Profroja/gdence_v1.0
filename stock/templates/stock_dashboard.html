@@ -1,0 +1,207 @@
+{% extends 'stock_base.html' %}
+{% load humanize %} 
+
+{% block title %}Stock Dashboard - Gdence{% endblock %}
+
+{% block extra_css %}
+    .sales-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .sales-widget {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sales-widget::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--accent-blue);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+    }
+
+    .sales-widget:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .sales-widget:hover::before {
+        transform: scaleY(1);
+    }
+
+    .sales-widget.today {
+        border-top: 3px solid #22C55E;
+    }
+
+    .sales-widget.month {
+        border-top: 3px solid #3B82F6;
+    }
+
+    .sales-widget.year {
+        border-top: 3px solid #A855F7;
+    }
+
+    .widget-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    .widget-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-gray);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .widget-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .sales-widget.today .widget-icon {
+        background: rgba(34, 197, 94, 0.1);
+        color: #22C55E;
+    }
+
+    .sales-widget.month .widget-icon {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3B82F6;
+    }
+
+    .sales-widget.year .widget-icon {
+        background: rgba(168, 85, 247, 0.1);
+        color: #A855F7;
+    }
+
+    .widget-value {
+        font-size: 36px;
+        font-weight: 800;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .widget-label {
+        font-size: 13px;
+        color: var(--text-gray);
+        font-weight: 500;
+    }
+
+    .widget-change {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-top: 12px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        width: fit-content;
+    }
+
+    .widget-change.positive {
+        color: #22C55E;
+        background: rgba(34, 197, 94, 0.1);
+    }
+
+    .widget-change.negative {
+        color: #EF4444;
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    @media (max-width: 768px) {
+        .sales-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+{% endblock %}
+
+{% block content %}
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Stock Dashboard</h1>
+            <p class="page-subtitle">Welcome, {{ user.username }}</p>
+        </div>
+    </div>
+
+    <!-- Stock Widgets -->
+    <div class="sales-grid">
+        <!-- Total Products -->
+        <div class="sales-widget today">
+            <div class="widget-header">
+                <span class="widget-title">Total Products</span>
+                <div class="widget-icon">
+                    <i class="fas fa-boxes"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ total_products|default:"0"|intcomma }}</div>
+            <div class="widget-label">Distinct product names in stock</div>
+            <div class="widget-change positive">
+                <i class="fas fa-check-circle"></i>
+                <span>Products</span>
+            </div>
+        </div>
+
+        <!-- Total Stock Value -->
+        <div class="sales-widget month">
+            <div class="widget-header">
+                <span class="widget-title">Total Stock Value</span>
+                <div class="widget-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+            </div>
+            <div class="widget-value" data-value="{{ total_stock_value|default:"0" }}">Tsh {{ total_stock_value|default:"0" }}</div>
+            <div class="widget-label">Combined value of all stock</div>
+            <div class="widget-change positive">
+                <i class="fas fa-chart-line"></i>
+                <span>Value</span>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Format numbers with thousand separators
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Format currency with thousand separators
+function formatCurrency(num) {
+    return 'Tsh ' + parseFloat(num).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Format widget values on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Format stock value
+    const stockValueElement = document.querySelector('[data-value]');
+    if (stockValueElement) {
+        const value = stockValueElement.getAttribute('data-value');
+        stockValueElement.textContent = formatCurrency(value);
+    }
+});
+</script>
+{% endblock %}

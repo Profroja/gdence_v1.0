@@ -1,0 +1,276 @@
+{% extends 'staff_base.html' %}
+{% load humanize %}
+
+{% block title %}Branch Expenditure - Gdence POS{% endblock %}
+{% block page_title %}Branch Expenditure{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <div>
+        <h1 style="font-size: 28px; font-weight: 700; margin: 0;">Branch Expenditure</h1>
+        <p style="font-size: 14px; color: var(--text-gray); margin-top: 4px;">Track and manage branch expenses</p>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <!-- Month Navigation -->
+        <div style="display: flex; gap: 8px; align-items: center; background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+            <button onclick="navigateMonth('prev')" style="padding: 8px 12px; background: var(--bg-light); color: var(--text-dark); border: 1px solid var(--border-color); border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-chevron-left"></i> Prev
+            </button>
+            <span id="currentMonthDisplay" style="font-size: 14px; font-weight: 700; color: var(--text-dark); min-width: 120px; text-align: center;">
+                {{ current_month }}
+            </span>
+            <button onclick="navigateMonth('next')" style="padding: 8px 12px; background: var(--bg-light); color: var(--text-dark); border: 1px solid var(--border-color); border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <button onclick="openAddExpenditureModal()" style="text-decoration: none; display: inline-block; padding: 10px 20px; background: var(--primary-color); color: white; border-radius: 8px; font-weight: 600; border: none; cursor: pointer;">
+            <i class="fas fa-plus"></i> Add Expenditure
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Widget -->
+<div style="max-width: 1200px; margin: 0 auto 32px auto;">
+    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); border: 2px solid var(--primary-color);">
+        <div style="text-align: center; margin-bottom: 16px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px;">
+            <span style="font-size: 12px; color: var(--primary-color); font-weight: 600;">
+                <i class="fas fa-calendar-alt"></i> {{ current_month }} Statistics
+            </span>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 20px;">
+            <div style="flex: 1; text-align: center; padding: 20px; border-right: 2px solid var(--border-color);">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Total Expenditure</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--danger-color);">TSh {{ total_expenditure|floatformat:0|intcomma }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">{{ expenditure_count }} Transactions</div>
+            </div>
+        
+            <div style="flex: 1; text-align: center; padding: 20px;">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Amount Remaining</div>
+                <div style="font-size: 36px; font-weight: 800; color: {% if remaining_amount >= 0 %}var(--success-color){% else %}var(--danger-color){% endif %};">
+                    TSh {{ remaining_amount|floatformat:0|intcomma }}
+                </div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">Revenue - Expenditure</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expenditure List -->
+<div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-list" style="color: var(--primary-color);"></i>
+        Recent Expenditures
+    </h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: var(--bg-light);">
+            <tr>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">#</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Date</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Purpose</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Amount</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Added By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expenditure in expenditures %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px;"><strong>{{ forloop.counter }}</strong></td>
+                <td style="padding: 12px;">{{ expenditure.date|date:"M d, Y" }}</td>
+                <td style="padding: 12px;">{{ expenditure.purpose }}</td>
+                <td style="padding: 12px;"><strong style="color: var(--danger-color);">TSh {{ expenditure.amount|floatformat:0|intcomma }}</strong></td>
+                <td style="padding: 12px;">{{ expenditure.created_by.username|default:"System" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-gray);">No expenditures recorded</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Expenditure Modal -->
+<div class="modal-overlay" id="addExpenditureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="padding: 20px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="modal-title" style="font-size: 20px; font-weight: 700; margin: 0;">Add Expenditure</h3>
+            <button class="modal-close" onclick="closeAddExpenditureModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-gray);">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <form id="addExpenditureForm">
+                <!-- Amount -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-dark);">
+                        Amount (TSh) <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    <input type="number" id="expenditureAmount" name="amount" required min="0" step="0.01"
+                           style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px;"
+                           placeholder="Enter amount">
+                </div>
+                
+                <!-- Purpose -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-dark);">
+                        Purpose <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    <input type="text" id="expenditurePurpose" name="purpose" required maxlength="255"
+                           style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px;"
+                           placeholder="e.g., Office supplies, Utilities, Salaries">
+                </div>
+                
+                <!-- Date -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-dark);">
+                        Date <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    <input type="date" id="expenditureDate" name="date" required
+                           style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px;">
+                </div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closeAddExpenditureModal()" 
+                            style="flex: 1; padding: 12px; background: white; color: var(--text-gray); border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            style="flex: 2; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-plus-circle"></i> Add Expenditure
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get current month and year from URL or use current date
+const urlParams = new URLSearchParams(window.location.search);
+let currentYear = parseInt(urlParams.get('year')) || new Date().getFullYear();
+let currentMonth = parseInt(urlParams.get('month')) || (new Date().getMonth() + 1);
+
+// Month navigation function
+function navigateMonth(direction) {
+    if (direction === 'prev') {
+        currentMonth--;
+        if (currentMonth < 1) {
+            currentMonth = 12;
+            currentYear--;
+        }
+    } else if (direction === 'next') {
+        currentMonth++;
+        if (currentMonth > 12) {
+            currentMonth = 1;
+            currentYear++;
+        }
+    }
+    
+    // Reload page with new month/year parameters
+    window.location.href = `/staff/expenditure/?year=${currentYear}&month=${currentMonth}`;
+}
+
+// Set today's date as default
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('expenditureDate').value = today;
+});
+
+function openAddExpenditureModal() {
+    document.getElementById('addExpenditureModal').style.display = 'flex';
+}
+
+function closeAddExpenditureModal() {
+    document.getElementById('addExpenditureModal').style.display = 'none';
+    document.getElementById('addExpenditureForm').reset();
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('expenditureDate').value = today;
+}
+
+// Close modal when clicking outside
+document.getElementById('addExpenditureModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddExpenditureModal();
+    }
+});
+
+// Handle form submission
+document.getElementById('addExpenditureForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const amount = parseFloat(document.getElementById('expenditureAmount').value);
+    const purpose = document.getElementById('expenditurePurpose').value.trim();
+    const date = document.getElementById('expenditureDate').value;
+    
+    if (!amount || amount <= 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Amount',
+            text: 'Please enter a valid amount'
+        });
+        return;
+    }
+    
+    if (!purpose) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Purpose Required',
+            text: 'Please enter the purpose of expenditure'
+        });
+        return;
+    }
+    
+    if (!date) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Date Required',
+            text: 'Please select a date'
+        });
+        return;
+    }
+    
+    // Send to backend
+    fetch('/staff/add-expenditure/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            amount: amount,
+            purpose: purpose,
+            date: date
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeAddExpenditureModal();
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Expenditure Added!',
+                text: `TSh ${amount.toLocaleString()} for ${purpose} has been recorded`,
+                showConfirmButton: false,
+                timer: 2000
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to add expenditure'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to add expenditure'
+        });
+    });
+});
+</script>
+{% endblock %}

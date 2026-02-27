@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manager Portal — {% block title %}{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-bg:     #0f1e35;
+      --sidebar-hover:  rgba(255,255,255,0.06);
+      --sidebar-active: rgba(59,130,246,0.15);
+      --sidebar-border: rgba(255,255,255,0.08);
+      --sidebar-text:   #8ba5c2;
+      --sidebar-w: 220px;
+
+      --bg:     #f1f5f9;
+      --white:  #ffffff;
+      --border: #e2e8f0;
+
+      --blue:   #3b82f6;
+      --green:  #10b981;
+      --yellow: #f59e0b;
+      --red:    #ef4444;
+      --purple: #8b5cf6;
+      --teal:   #06b6d4;
+
+      --text:   #1e293b;
+      --text2:  #475569;
+      --muted:  #94a3b8;
+
+      --header-h: 56px;
+      --r: 8px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: var(--sidebar-w); height: 100vh;
+      background: var(--sidebar-bg);
+      display: flex; flex-direction: column;
+      z-index: 200;
+      transition: transform .25s ease;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 9px;
+      padding: 16px 16px 14px;
+      border-bottom: 1px solid var(--sidebar-border);
+    }
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: var(--blue); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .logo-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+
+    .sidebar-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+    .sidebar-nav::-webkit-scrollbar { width: 0; }
+
+    .nav-group-label {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: rgba(139,165,194,0.45);
+      padding: 10px 8px 4px;
+    }
+
+    .nav-link {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: 6px;
+      text-decoration: none; color: var(--sidebar-text);
+      font-size: 13px; font-weight: 500;
+      transition: background .15s, color .15s;
+      margin-bottom: 1px; position: relative;
+    }
+    .nav-link:hover { background: var(--sidebar-hover); color: #c9daf0; }
+    .nav-link.active {
+      background: var(--sidebar-active); color: #fff;
+      border-left: 2px solid var(--blue); padding-left: 8px;
+    }
+    .nav-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--blue); color: #fff;
+      font-size: 10px; font-weight: 600;
+      padding: 1px 6px; border-radius: 10px;
+    }
+
+    .sidebar-user {
+      padding: 10px 12px 14px;
+      border-top: 1px solid var(--sidebar-border);
+      display: flex; align-items: center; gap: 9px; cursor: pointer;
+    }
+    .sidebar-user:hover { background: var(--sidebar-hover); }
+    .user-ava {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .user-details { flex: 1; overflow: hidden; }
+    .user-name { font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 11px; color: var(--sidebar-text); }
+
+    /* ─── TOPBAR ─── */
+    .topbar {
+      position: fixed; top: 0;
+      left: var(--sidebar-w); right: 0;
+      height: var(--header-h);
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 20px; gap: 12px;
+      z-index: 100; transition: left .25s ease;
+    }
+    .hamburger {
+      display: none;
+      background: none; border: none;
+      color: var(--text2); cursor: pointer;
+      padding: 4px; border-radius: 5px;
+    }
+    .hamburger:hover { background: var(--bg); }
+
+    .topbar-search {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 7px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 12px; width: 220px;
+      transition: border-color .15s;
+    }
+    .topbar-search:focus-within { border-color: var(--blue); background: #fff; }
+    .topbar-search input {
+      background: none; border: none; outline: none;
+      font-family: inherit; font-size: 12px; color: var(--text); width: 100%;
+    }
+    .topbar-search input::placeholder { color: var(--muted); }
+
+    .topbar-right { display: flex; align-items: center; gap: 6px; }
+    .tb-btn {
+      width: 32px; height: 32px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--white);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text2); font-size: 14px;
+      position: relative; transition: border-color .15s, background .15s;
+    }
+    .tb-btn:hover { border-color: var(--blue); background: #eff6ff; color: var(--blue); }
+    .tb-dot {
+      position: absolute; top: 6px; right: 6px;
+      width: 6px; height: 6px;
+      background: var(--red); border-radius: 50%; border: 1.5px solid #fff;
+    }
+    .tb-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff; cursor: pointer;
+      border: 2px solid var(--white); box-shadow: 0 0 0 1px var(--border);
+    }
+
+    /* ─── MAIN ─── */
+    .main { margin-left: var(--sidebar-w); padding-top: var(--header-h); flex: 1; min-width: 0; transition: margin-left .25s ease; }
+    .content { padding: 20px; max-width: 1320px; }
+
+    /* ─── UTILITIES ─── */
+    .card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 14px; border-radius: 6px;
+      font-family: inherit; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: none; transition: all .15s;
+    }
+    .btn-outline { background: var(--white); color: var(--text2); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+    .btn-primary { background: var(--blue); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,.25); }
+    .btn-primary:hover { background: #2563eb; }
+
+    .badge { display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600; }
+    .badge-blue   { background:#eff6ff; color:var(--blue); }
+    .badge-green  { background:#f0fdf4; color:var(--green); }
+    .badge-red    { background:#fef2f2; color:var(--red); }
+    .badge-yellow { background:#fffbeb; color:var(--yellow); }
+
+    /* ─── OVERLAY ─── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 150; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 860px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 30px rgba(0,0,0,.2); }
+      .topbar { left: 0; }
+      .main { margin-left: 0; }
+      .hamburger { display: flex; align-items: center; justify-content: center; }
+      .overlay.show { display: block; }
+      .content { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      .topbar-search { display: none; }
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ─── SIDEBAR ─── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">⚡</div>
+    <span class="logo-name">ManagerPro</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group-label">Main</div>
+    <a href="manager_dashboard.html" class="nav-link {% block nav_dashboard %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="#" class="nav-link {% block nav_analytics %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Analytics
+    </a>
+    <a href="#" class="nav-link {% block nav_projects %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Projects <span class="nav-badge">4</span>
+    </a>
+
+    <div class="nav-group-label">Team</div>
+    <a href="#" class="nav-link {% block nav_members %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Members
+    </a>
+    <a href="#" class="nav-link {% block nav_tasks %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tasks <span class="nav-badge">12</span>
+    </a>
+    <a href="#" class="nav-link {% block nav_schedule %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Schedule
+    </a>
+
+    <div class="nav-group-label">Finance</div>
+    <a href="#" class="nav-link {% block nav_budget %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Budget
+    </a>
+    <a href="#" class="nav-link {% block nav_reports %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Reports
+    </a>
+
+    <div class="nav-group-label">System</div>
+    <a href="#" class="nav-link {% block nav_messages %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Messages <span class="nav-badge">3</span>
+    </a>
+    <a href="#" class="nav-link {% block nav_settings %}{% endblock %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 12 2a10 10 0 0 0-7.07 2.93"/></svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-ava">JD</div>
+    <div class="user-details">
+      <div class="user-name">James Doe</div>
+      <div class="user-role">Senior Manager</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ─── TOPBAR ─── -->
+<header class="topbar">
+  <button class="hamburger" onclick="openSidebar()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <div class="topbar-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Search…">
+  </div>
+
+  <div class="topbar-right">
+    <div class="tb-btn">🔔<span class="tb-dot"></span></div>
+    <div class="tb-btn" style="font-size:12px;font-weight:700;">?</div>
+    <div class="tb-avatar">JD</div>
+  </div>
+</header>
+
+<!-- ─── MAIN ─── -->
+<main class="main">
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<script>
+  function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

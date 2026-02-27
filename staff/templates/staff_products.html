@@ -1,0 +1,418 @@
+{% extends 'staff_base.html' %}
+{% load humanize %}
+
+{% block title %}Products - Gdence POS{% endblock %}
+{% block page_title %}Products{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .page-subtitle {
+        font-size: 14px;
+        color: var(--text-gray);
+        margin-top: 4px;
+    }
+
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table thead {
+        background: var(--bg-light);
+    }
+
+    .data-table th {
+        padding: 12px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-dark);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .data-table td {
+        padding: 12px;
+        font-size: 14px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .data-table tbody tr:hover {
+        background: var(--bg-light);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-secondary {
+        background: #F3F4F6;
+        color: #4B5563;
+    }
+
+    .badge-success {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        margin: 0 2px;
+    }
+
+    .btn-components {
+        color: var(--primary-color);
+    }
+
+    .btn-components:hover {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .info-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid var(--primary-color);
+        border-radius: 8px;
+        color: var(--primary-color);
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Products</h1>
+        <p class="page-subtitle">View all products (Read-only)</p>
+    </div>
+</div>
+
+<!-- Search Box -->
+<div style="margin-bottom: 20px;">
+    <div style="position: relative; max-width: 500px;">
+        <i class="fas fa-search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
+        <input type="text" id="productSearch" placeholder="Search by part number or name..." 
+               style="width: 100%; padding: 12px 16px 12px 48px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px;"
+               onkeyup="searchProducts()">
+        <i class="fas fa-times" id="clearSearch" onclick="clearSearch()" 
+           style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text-gray); cursor: pointer; display: none;"></i>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr> 
+                <th>S/N</th>
+                <th>Type</th>
+                <th>Part Number</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Initial Qty</th>
+                <th>Sold</th>
+                <th>Added Stock</th>
+                <th>Remain</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for part in new_parts %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><span class="badge badge-info">New</span></td>
+                <td>{{ part.part_number|default:"-" }}</td>
+                <td>{{ part.name }}</td>
+                <td>TSh {{ part.unit_price|floatformat:0|intcomma }}</td>
+                <td>{{ part.initial_quantity }}</td>
+                <td>{{ part.sold_quantity }}</td>
+                <td>{{ part.added_stock }}</td>
+                <td>{{ part.current_quantity }}</td>
+                <td>
+                    {% if part.is_out_of_stock %}
+                        <span class="badge badge-danger">Out of Stock</span>
+                    {% elif part.is_low_stock %}
+                        <span class="badge badge-warning">Low Stock</span>
+                    {% else %}
+                        <span class="badge badge-success">In Stock</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-size: 12px; color: var(--text-gray);">-</span>
+                </td>
+            </tr>
+            {% endfor %}
+            {% for part in used_parts %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><span class="badge badge-secondary">Used</span></td>
+                <td>{{ part.part_number|default:"-" }}</td>
+                <td>{{ part.name }}</td>
+                <td>TSh {{ part.whole_price|floatformat:0|intcomma }}</td>
+                <td>{{ part.initial_quantity }}</td>
+                <td>{{ part.sold_quantity }}</td>
+                <td>{{ part.added_stock }}</td>
+                <td>{{ part.current_quantity }}</td>
+                <td>
+                    {% if part.is_out_of_stock %}
+                        <span class="badge badge-danger">Out of Stock</span>
+                    {% else %}
+                        <span class="badge badge-success">In Stock</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if part.can_be_broken_down %}
+                    <button class="btn-icon btn-components" onclick="viewComponents({{ part.id }}, '{{ part.name }}')" title="View Components">
+                        <i class="fas fa-cogs"></i>
+                    </button>
+                    {% else %}
+                    <span style="font-size: 12px; color: var(--text-gray);">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not new_parts and not used_parts %}
+            <tr>
+                <td colspan="10" style="text-align: center; padding: 40px;">No products registered</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Components Modal (Read-only) -->
+<div class="modal-overlay" id="componentsModal">
+    <div class="modal" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="componentsModalTitle">Components</h3>
+            <button class="modal-close" onclick="closeComponentsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="info-badge" style="margin-bottom: 20px;">
+                <i class="fas fa-info-circle"></i> Read-only view
+            </div>
+            <table class="data-table" id="componentsTable">
+                <thead>
+                    <tr>
+                        <th>Component Name</th>
+                        <th>Unit Price</th>
+                        <th>Initial Qty</th>
+                        <th>Sold</th>
+                        <th>Current Qty</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="componentsTableBody">
+                    <!-- Components will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-gray);
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--bg-light);
+    color: var(--text-dark);
+}
+
+.modal-body {
+    padding: 24px;
+}
+</style>
+
+<script>
+// Search products function
+function searchProducts() {
+    const searchInput = document.getElementById('productSearch');
+    const filter = searchInput.value.toLowerCase();
+    const table = document.querySelector('.data-table tbody');
+    const rows = table.getElementsByTagName('tr');
+    const clearBtn = document.getElementById('clearSearch');
+    
+    // Show/hide clear button
+    clearBtn.style.display = filter ? 'block' : 'none';
+    
+    let visibleCount = 0;
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        
+        // Skip the "no products" row
+        if (row.cells.length === 1) continue;
+        
+        // Account for S/N column (index 0), Type (1), Part Number (2), Name (3)
+        const partNumber = row.cells[2].textContent.toLowerCase();
+        const name = row.cells[3].textContent.toLowerCase();
+        
+        if (partNumber.includes(filter) || name.includes(filter)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    }
+}
+
+function clearSearch() {
+    document.getElementById('productSearch').value = '';
+    searchProducts();
+}
+
+function viewComponents(usedPartId, partName) {
+    document.getElementById('componentsModalTitle').textContent = `Components - ${partName}`;
+    
+    // Fetch components
+    fetch(`/stock/components/${usedPartId}/json/`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('componentsTableBody');
+            tbody.innerHTML = '';
+            
+            if (data.components && data.components.length > 0) {
+                data.components.forEach(comp => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${comp.name}</td>
+                        <td>TSh ${parseFloat(comp.unit_price).toLocaleString()}</td>
+                        <td>${comp.initial_quantity}</td>
+                        <td>${comp.sold_quantity}</td>
+                        <td>${comp.current_quantity}</td>
+                        <td>
+                            ${comp.current_quantity === 0 
+                                ? '<span class="badge badge-danger">Out of Stock</span>' 
+                                : '<span class="badge badge-success">In Stock</span>'}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-gray);">No components found</td></tr>';
+            }
+            
+            document.getElementById('componentsModal').classList.add('active');
+        })
+        .catch(error => {
+            console.error('Error fetching components:', error);
+            alert('Failed to load components');
+        });
+}
+
+function closeComponentsModal() {
+    document.getElementById('componentsModal').classList.remove('active');
+}
+
+// Close modal on overlay click
+document.getElementById('componentsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeComponentsModal();
+    }
+});
+</script>
+{% endblock %}

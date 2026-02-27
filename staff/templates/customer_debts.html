@@ -1,0 +1,517 @@
+{% extends 'staff_base.html' %}
+{% load humanize %}
+
+{% block title %}Customer Debts - Gdence POS{% endblock %}
+{% block page_title %}Customer Debts{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <div>
+        <h1 style="font-size: 28px; font-weight: 700; margin: 0;">Customer Debts</h1>
+        <p style="font-size: 14px; color: var(--text-gray); margin-top: 4px;">Manage customer debts and payments</p>
+    </div>
+    <a href="{% url 'staff:new_sale' %}" style="text-decoration: none; display: inline-block; padding: 10px 20px; background: var(--primary-color); color: white; border-radius: 8px; font-weight: 600;">
+        <i class="fas fa-plus"></i> Create New Debt
+    </a>
+</div>
+
+<!-- Statistics Widget -->
+<div style="max-width: 1000px; margin: 0 auto 32px auto;">
+    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); border: 2px solid var(--warning-color);">
+        <div style="text-align: center; margin-bottom: 16px; padding: 8px; background: rgba(245, 158, 11, 0.1); border-radius: 6px;">
+            <span style="font-size: 12px; color: var(--warning-color); font-weight: 600;">
+                <i class="fas fa-calendar-alt"></i> {{ current_month }} Statistics
+            </span>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 20px;">
+            <div style="flex: 1; text-align: center; padding: 20px; border-right: 2px solid var(--border-color);">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Active Debts</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--danger-color);">{{ active_debts_count }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">Unpaid Customers</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 20px; border-right: 2px solid var(--border-color);">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Total Debt Amount</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--warning-color);">TSh {{ total_debt_amount|floatformat:0|intcomma }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">Outstanding Balance</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 20px;">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Payments Received</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--success-color);">TSh {{ payments_this_month|floatformat:0|intcomma }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">This Month</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Debts -->
+<div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); margin-bottom: 24px;">
+    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-exclamation-circle" style="color: var(--danger-color);"></i>
+        Active Debts ({{ active_debts_count }})
+    </h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: var(--bg-light);">
+            <tr>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Receipt #</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Order Created</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Customer</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Phone</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Due Date</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Total</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Paid</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Balance</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for debt in active_debts %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px;"><strong>{{ debt.receipt_number }}</strong></td>
+                <td style="padding: 12px;">{{ debt.created_at|date:"M d, Y" }}</td>
+                <td style="padding: 12px;">{{ debt.customer.name|default:"Walk-in" }}</td>
+                <td style="padding: 12px;">{{ debt.customer.mobile_number|default:"-" }}</td>
+                <td style="padding: 12px;">
+                    {% if debt.due_date %}
+                        <strong style="color: var(--warning-color);">{{ debt.due_date|date:"M d, Y" }}</strong>
+                    {% else %}
+                        <span style="color: var(--text-gray);">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px;">TSh {{ debt.total_amount|floatformat:0|intcomma }}</td>
+                <td style="padding: 12px;">TSh {{ debt.paid_amount|floatformat:0|intcomma }}</td>
+                <td style="padding: 12px;"><strong style="color: var(--danger-color);">TSh {{ debt.remaining_debt|floatformat:0|intcomma }}</strong></td>
+                <td style="padding: 12px;">
+                    <button onclick="viewDebtDetails({{ debt.id }})" 
+                            style="padding: 6px 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button onclick="openPaymentModal({{ debt.id }}, '{{ debt.receipt_number }}', '{{ debt.customer.name|default:"Walk-in" }}', {{ debt.total_amount }}, {{ debt.paid_amount }}, {{ debt.remaining_debt }})" 
+                            style="padding: 6px 12px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        <i class="fas fa-money-bill-wave"></i> Pay
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-gray);">No active debts</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Completed Debts -->
+<div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+        Completed Debts
+    </h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: var(--bg-light);">
+            <tr>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Receipt #</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Date Created</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Date Completed</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Customer</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Total Amount</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for debt in completed_debts %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px;"><strong>{{ debt.receipt_number }}</strong></td>
+                <td style="padding: 12px;">{{ debt.created_at|date:"M d, Y" }}</td>
+                <td style="padding: 12px;">{{ debt.updated_at|date:"M d, Y" }}</td>
+                <td style="padding: 12px;">{{ debt.customer.name|default:"Walk-in" }}</td>
+                <td style="padding: 12px;">TSh {{ debt.total_amount|floatformat:0|intcomma }}</td>
+                <td style="padding: 12px;"><span style="background: #D1FAE5; color: #065F46; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700;">PAID</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-gray);">No completed debts</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Debt Details Modal -->
+<div class="modal-overlay" id="debtDetailsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="padding: 20px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="modal-title" style="font-size: 20px; font-weight: 700; margin: 0;">Debt Details</h3>
+            <button class="modal-close" onclick="closeDebtDetailsModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-gray);">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <!-- Debt Summary -->
+            <div style="background: #FEF3C7; padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--warning-color);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 4px;">Receipt Number</div>
+                        <div style="font-size: 16px; font-weight: 700;" id="detailReceiptNumber">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 4px;">Customer</div>
+                        <div style="font-size: 16px; font-weight: 700;" id="detailCustomerName">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 4px;">Mobile Number</div>
+                        <div style="font-size: 16px; font-weight: 700;" id="detailCustomerMobile">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 4px;">Due Date</div>
+                        <div style="font-size: 16px; font-weight: 700; color: var(--warning-color);" id="detailDueDate">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Summary -->
+            <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 14px; color: var(--text-gray);">Total Amount:</span>
+                    <strong id="detailTotalAmount" style="font-size: 14px;">TSh 0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 14px; color: var(--text-gray);">Amount Paid:</span>
+                    <strong id="detailPaidAmount" style="font-size: 14px; color: var(--success-color);">TSh 0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                    <span style="font-size: 16px; font-weight: 700;">Remaining Balance:</span>
+                    <strong id="detailRemainingAmount" style="font-size: 18px; font-weight: 800; color: var(--danger-color);">TSh 0</strong>
+                </div>
+            </div>
+
+            <!-- Items Purchased -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-shopping-cart" style="color: var(--primary-color);"></i>
+                    Items Purchased
+                </h4>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--border-color); border-radius: 8px;">
+                    <thead style="background: var(--bg-light);">
+                        <tr>
+                            <th style="padding: 10px; text-align: left; font-size: 12px; border-bottom: 1px solid var(--border-color);">Item</th>
+                            <th style="padding: 10px; text-align: center; font-size: 12px; border-bottom: 1px solid var(--border-color);">Qty</th>
+                            <th style="padding: 10px; text-align: right; font-size: 12px; border-bottom: 1px solid var(--border-color);">Unit Price</th>
+                            <th style="padding: 10px; text-align: right; font-size: 12px; border-bottom: 1px solid var(--border-color);">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailItemsList">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-gray);">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Payment History -->
+            <div>
+                <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-history" style="color: var(--success-color);"></i>
+                    Payment History
+                </h4>
+                <div id="detailPaymentHistory" style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                    <div style="text-align: center; padding: 20px; color: var(--text-gray);">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header" style="padding: 20px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="modal-title" style="font-size: 20px; font-weight: 700; margin: 0;">Record Payment</h3>
+            <button class="modal-close" onclick="closePaymentModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-gray);">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <form id="paymentForm">
+                <input type="hidden" id="debtId" name="debt_id">
+                
+                <!-- Debt Summary -->
+                <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--text-gray);">Receipt:</span>
+                        <strong id="paymentReceiptNumber" style="font-size: 13px;">-</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--text-gray);">Customer:</span>
+                        <strong id="paymentCustomerName" style="font-size: 13px;">-</strong>
+                    </div>
+                    <div style="border-top: 1px solid var(--border-color); margin: 12px 0; padding-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 14px; color: var(--text-gray);">Total Amount:</span>
+                            <strong id="paymentTotalAmount" style="font-size: 14px;">TSh 0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 14px; color: var(--text-gray);">Already Paid:</span>
+                            <strong id="paymentPaidAmount" style="font-size: 14px; color: var(--success-color);">TSh 0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                            <span style="font-size: 16px; font-weight: 700;">Remaining Balance:</span>
+                            <strong id="paymentRemainingAmount" style="font-size: 18px; font-weight: 800; color: var(--danger-color);">TSh 0</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Amount Input -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-dark);">
+                        Payment Amount <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    <input type="number" id="paymentAmount" name="amount" required min="1" step="0.01"
+                           style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; font-weight: 600;"
+                           placeholder="Enter payment amount" oninput="updateNewBalance()">
+                    <p style="font-size: 11px; color: var(--text-gray); margin-top: 6px;">Enter the amount customer is paying now</p>
+                </div>
+                
+                <!-- New Balance Preview -->
+                <div id="newBalancePreview" style="background: #D1FAE5; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 14px; font-weight: 600; color: #065F46;">New Balance After Payment:</span>
+                        <strong id="newBalanceAmount" style="font-size: 18px; font-weight: 800; color: #065F46;">TSh 0</strong>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="closePaymentModal()" 
+                            style="flex: 1; padding: 12px; background: white; color: var(--text-gray); border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            style="flex: 2; padding: 12px; background: var(--success-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        <i class="fas fa-check-circle"></i> Record Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+let currentDebtData = {};
+
+function openPaymentModal(debtId, receiptNumber, customerName, totalAmount, paidAmount, remainingAmount) {
+    currentDebtData = {
+        id: debtId,
+        receiptNumber: receiptNumber,
+        customerName: customerName,
+        totalAmount: totalAmount,
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount
+    };
+    
+    document.getElementById('debtId').value = debtId;
+    document.getElementById('paymentReceiptNumber').textContent = receiptNumber;
+    document.getElementById('paymentCustomerName').textContent = customerName;
+    document.getElementById('paymentTotalAmount').textContent = `TSh ${totalAmount.toLocaleString()}`;
+    document.getElementById('paymentPaidAmount').textContent = `TSh ${paidAmount.toLocaleString()}`;
+    document.getElementById('paymentRemainingAmount').textContent = `TSh ${remainingAmount.toLocaleString()}`;
+    document.getElementById('paymentAmount').value = '';
+    document.getElementById('paymentAmount').max = remainingAmount;
+    document.getElementById('newBalancePreview').style.display = 'none';
+    
+    document.getElementById('paymentModal').style.display = 'flex';
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+    currentDebtData = {};
+}
+
+function updateNewBalance() {
+    const paymentAmount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+    const remainingAmount = currentDebtData.remainingAmount || 0;
+    
+    if (paymentAmount > 0) {
+        const newBalance = Math.max(0, remainingAmount - paymentAmount);
+        document.getElementById('newBalanceAmount').textContent = `TSh ${newBalance.toLocaleString()}`;
+        document.getElementById('newBalancePreview').style.display = 'block';
+        
+        if (paymentAmount > remainingAmount) {
+            document.getElementById('paymentAmount').style.borderColor = 'var(--danger-color)';
+        } else {
+            document.getElementById('paymentAmount').style.borderColor = 'var(--success-color)';
+        }
+    } else {
+        document.getElementById('newBalancePreview').style.display = 'none';
+        document.getElementById('paymentAmount').style.borderColor = 'var(--border-color)';
+    }
+}
+
+document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const debtId = document.getElementById('debtId').value;
+    const paymentAmount = parseFloat(document.getElementById('paymentAmount').value);
+    
+    if (!paymentAmount || paymentAmount <= 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Amount',
+            text: 'Please enter a valid payment amount'
+        });
+        return;
+    }
+    
+    if (paymentAmount > currentDebtData.remainingAmount) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Amount Too High',
+            text: `Payment amount cannot exceed remaining balance of TSh ${currentDebtData.remainingAmount.toLocaleString()}`
+        });
+        return;
+    }
+    
+    // Send payment to backend
+    fetch(`/staff/record-payment/${debtId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            amount: paymentAmount
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closePaymentModal();
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Payment Recorded!',
+                html: `
+                    <p>Payment of <strong>TSh ${paymentAmount.toLocaleString()}</strong> has been recorded</p>
+                    <p>New Balance: <strong>TSh ${data.new_balance.toLocaleString()}</strong></p>
+                    ${data.is_fully_paid ? '<p style="color: var(--success-color); font-weight: 700;">✓ Debt Fully Paid!</p>' : ''}
+                `,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to record payment'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to record payment'
+        });
+    });
+});
+
+// Close modal when clicking outside
+document.getElementById('paymentModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePaymentModal();
+    }
+});
+
+// Debt Details Modal Functions
+function viewDebtDetails(debtId) {
+    // Show modal
+    document.getElementById('debtDetailsModal').style.display = 'flex';
+    
+    // Fetch debt details from backend
+    fetch(`/staff/debt-details/${debtId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Populate debt summary
+                document.getElementById('detailReceiptNumber').textContent = data.receipt_number;
+                document.getElementById('detailCustomerName').textContent = data.customer_name || 'Walk-in';
+                document.getElementById('detailCustomerMobile').textContent = data.customer_mobile || '-';
+                document.getElementById('detailDueDate').textContent = data.due_date || '-';
+                document.getElementById('detailTotalAmount').textContent = `TSh ${data.total_amount.toLocaleString()}`;
+                document.getElementById('detailPaidAmount').textContent = `TSh ${data.paid_amount.toLocaleString()}`;
+                document.getElementById('detailRemainingAmount').textContent = `TSh ${data.remaining_amount.toLocaleString()}`;
+                
+                // Populate items list
+                const itemsList = document.getElementById('detailItemsList');
+                if (data.items && data.items.length > 0) {
+                    itemsList.innerHTML = data.items.map(item => `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 10px;">${item.name}</td>
+                            <td style="padding: 10px; text-align: center;">${item.quantity}</td>
+                            <td style="padding: 10px; text-align: right;">TSh ${item.unit_price.toLocaleString()}</td>
+                            <td style="padding: 10px; text-align: right;"><strong>TSh ${item.total.toLocaleString()}</strong></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    itemsList.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-gray);">No items found</td></tr>';
+                }
+                
+                // Populate payment history
+                const paymentHistory = document.getElementById('detailPaymentHistory');
+                if (data.payment_history && data.payment_history.length > 0) {
+                    paymentHistory.innerHTML = data.payment_history.map((payment, index) => `
+                        <div style="padding: 12px; border-bottom: 1px solid var(--border-color); ${index === 0 ? 'background: var(--bg-light);' : ''}">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-dark);">
+                                        <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                                        Payment ${data.payment_history.length - index}
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">
+                                        ${payment.date}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 16px; font-weight: 700; color: var(--success-color);">
+                                        TSh ${payment.amount.toLocaleString()}
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--text-gray); margin-top: 4px;">
+                                        Balance: TSh ${payment.balance_after.toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    paymentHistory.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-gray);">No payments recorded yet</div>';
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Failed to load debt details'
+                });
+                closeDebtDetailsModal();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load debt details'
+            });
+            closeDebtDetailsModal();
+        });
+}
+
+function closeDebtDetailsModal() {
+    document.getElementById('debtDetailsModal').style.display = 'none';
+}
+
+// Close debt details modal when clicking outside
+document.getElementById('debtDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDebtDetailsModal();
+    }
+});
+</script>
+{% endblock %}

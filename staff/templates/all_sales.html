@@ -1,0 +1,591 @@
+{% extends 'staff_base.html' %}
+{% load humanize %}
+
+{% block title %}All Sales - Gdence POS{% endblock %}
+{% block page_title %}All Sales{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sales-stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 24px !important;
+        margin-bottom: 32px !important;
+        width: 100% !important;
+    }
+
+    @media (max-width: 768px) {
+        .sales-stats-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    .sales-stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 4px solid var(--primary-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .sales-stat-card.success {
+        border-left-color: var(--success-color);
+    }
+
+    .sales-stat-card.warning {
+        border-left-color: var(--warning-color);
+    }
+
+    .sales-stat-label {
+        font-size: 13px;
+        color: var(--text-gray);
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .sales-stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--text-dark);
+    }
+
+    .sales-stat-subtext {
+        font-size: 12px;
+        color: var(--text-gray);
+        margin-top: 4px;
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        align-items: end;
+    }
+
+    .filter-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-dark);
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .reset-btn {
+        padding: 10px 20px;
+        background: white;
+        color: var(--text-gray);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .reset-btn:hover {
+        background: var(--bg-light);
+    }
+
+    .sales-table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .sales-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .sales-table thead {
+        background: var(--bg-light);
+    }
+
+    .sales-table th {
+        padding: 12px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-dark);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .sales-table td {
+        padding: 12px;
+        font-size: 14px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .sales-table tbody tr:hover {
+        background: var(--bg-light);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .badge.regular {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge.debt {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge.paid {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge.unpaid {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .view-btn {
+        padding: 6px 12px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .view-btn:hover {
+        background: var(--primary-hover);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Sales Summary Widget -->
+<div style="max-width: 800px; margin: 0 auto 32px auto;">
+    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); {% if from_date or to_date %}border: 2px solid var(--primary-color);{% endif %}">
+        {% if from_date or to_date %}
+        <div style="text-align: center; margin-bottom: 16px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px;">
+            <span style="font-size: 12px; color: var(--primary-color); font-weight: 600;">
+                <i class="fas fa-filter"></i> Filtered Results
+                {% if from_date and to_date %}
+                    ({{ from_date }} to {{ to_date }})
+                {% elif from_date %}
+                    (From {{ from_date }})
+                {% elif to_date %}
+                    (Until {{ to_date }})
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 40px;">
+            <div style="flex: 1; text-align: center; padding: 20px; border-right: 2px solid var(--border-color);">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Total Sales</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--primary-color);">{{ total_sales }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">
+                    {% if from_date or to_date %}Filtered{% else %}All Time{% endif %} Transactions
+                </div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 20px;">
+                <div style="font-size: 14px; color: var(--text-gray); font-weight: 600; margin-bottom: 8px;">Total Amount</div>
+                <div style="font-size: 36px; font-weight: 800; color: var(--success-color);">TSh {{ total_amount|floatformat:0|intcomma }}</div>
+                <div style="font-size: 12px; color: var(--text-gray); margin-top: 4px;">
+                    {% if from_date or to_date %}Filtered{% else %}All Time{% endif %} Revenue
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="filter-section">
+    <form method="get" action="{% url 'staff:all_sales' %}">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>From Date</label>
+                <input type="date" name="from_date" value="{{ from_date }}">
+            </div>
+            
+            <div class="filter-group">
+                <label>To Date</label>
+                <input type="date" name="to_date" value="{{ to_date }}">
+            </div>
+            
+            
+            
+            <div class="filter-group">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-filter"></i> Apply Filter
+                </button>
+            </div>
+            
+            <div class="filter-group">
+                <a href="{% url 'staff:all_sales' %}" class="reset-btn" style="display: inline-block; text-align: center; text-decoration: none;">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Sales Table -->
+<div class="sales-table-container">
+    <table class="sales-table">
+        <thead>
+            <tr>
+                <th>Receipt #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Type</th>
+                <th>Payment</th>
+                <th>Subtotal</th>
+                <th>Discount</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+            <tr>
+                <td><strong>{{ sale.receipt_number }}</strong></td>
+                <td>{{ sale.created_at|date:"M d, Y H:i" }}</td>
+                <td>{{ sale.customer.name|default:"Walk-in" }}</td>
+                <td><span class="badge {{ sale.sale_type }}">{{ sale.get_sale_type_display }}</span></td>
+                <td>{{ sale.get_payment_type_display }}</td>
+                <td>TSh {{ sale.subtotal|floatformat:0|intcomma }}</td>
+                <td>TSh {{ sale.discount|floatformat:0|intcomma }}</td>
+                <td><strong>TSh {{ sale.total_amount|floatformat:0|intcomma }}</strong></td>
+                <td><span class="badge {% if sale.is_paid %}paid{% else %}unpaid{% endif %}">{% if sale.is_paid %}Paid{% else %}Unpaid{% endif %}</span></td>
+                <td>
+                    <button class="view-btn" onclick="viewSale({{ sale.id }})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-gray);">
+                    <i class="fas fa-receipt" style="font-size: 48px; opacity: 0.3; margin-bottom: 12px; display: block;"></i>
+                    No sales found
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Sale Details Modal -->
+<div class="modal-overlay" id="saleDetailsModal">
+    <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="saleModalTitle">Sale Details</h3>
+            <button class="modal-close" onclick="closeSaleModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="saleModalBody">
+            <!-- Sale details will be loaded here -->
+            <div style="text-align: center; padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary-color);"></i>
+                <p style="margin-top: 12px; color: var(--text-gray);">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    animation: modalSlide 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+@keyframes modalSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-gray);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--border-color);
+    color: var(--text-dark);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.sale-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--bg-light);
+    border-radius: 8px;
+}
+
+.sale-info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.sale-info-label {
+    font-size: 12px;
+    color: var(--text-gray);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.sale-info-value {
+    font-size: 14px;
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+}
+
+.items-table th {
+    background: var(--bg-light);
+    padding: 10px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dark);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.items-table td {
+    padding: 10px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.items-table tfoot td {
+    font-weight: 700;
+    background: var(--bg-light);
+}
+</style>
+
+<script>
+function viewSale(saleId) {
+    // Show modal
+    document.getElementById('saleDetailsModal').classList.add('active');
+    
+    // Fetch sale details
+    fetch(`/staff/sale-details/${saleId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySaleDetails(data.sale);
+            } else {
+                document.getElementById('saleModalBody').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 12px;"></i>
+                        <p>${data.message || 'Failed to load sale details'}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('saleModalBody').innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                    <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 12px;"></i>
+                    <p>Failed to load sale details</p>
+                </div>
+            `;
+        });
+}
+
+function displaySaleDetails(sale) {
+    const modalBody = document.getElementById('saleModalBody');
+    document.getElementById('saleModalTitle').textContent = `Sale Details - ${sale.receipt_number}`;
+    
+    const itemsHtml = sale.items.map(item => `
+        <tr>
+            <td>${item.name}</td>
+            <td>${item.type}</td>
+            <td style="text-align: center;">${item.quantity}</td>
+            <td style="text-align: right;">TSh ${item.unit_price.toLocaleString()}</td>
+            <td style="text-align: right;">TSh ${item.total_price.toLocaleString()}</td>
+        </tr>
+    `).join('');
+    
+    modalBody.innerHTML = `
+        <div class="sale-info-grid">
+            <div class="sale-info-item">
+                <span class="sale-info-label">Receipt Number</span>
+                <span class="sale-info-value">${sale.receipt_number}</span>
+            </div>
+            <div class="sale-info-item">
+                <span class="sale-info-label">Date & Time</span>
+                <span class="sale-info-value">${sale.created_at}</span>
+            </div>
+            <div class="sale-info-item">
+                <span class="sale-info-label">Customer</span>
+                <span class="sale-info-value">${sale.customer || 'Walk-in'}</span>
+            </div>
+            <div class="sale-info-item">
+                <span class="sale-info-label">Sale Type</span>
+                <span class="sale-info-value">${sale.sale_type}</span>
+            </div>
+            <div class="sale-info-item">
+                <span class="sale-info-label">Payment Method</span>
+                <span class="sale-info-value">${sale.payment_type}</span>
+            </div>
+            <div class="sale-info-item">
+                <span class="sale-info-label">Payment Status</span>
+                <span class="sale-info-value">${sale.is_paid ? 'Paid' : 'Unpaid'}</span>
+            </div>
+        </div>
+        
+        <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Items Sold</h4>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Type</th>
+                    <th style="text-align: center;">Quantity</th>
+                    <th style="text-align: right;">Unit Price</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHtml}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" style="text-align: right;">Subtotal:</td>
+                    <td style="text-align: right;">TSh ${sale.subtotal.toLocaleString()}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="text-align: right;">Discount:</td>
+                    <td style="text-align: right;">TSh ${sale.discount.toLocaleString()}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="text-align: right; font-size: 16px;">Total Amount:</td>
+                    <td style="text-align: right; font-size: 16px; color: var(--success-color);">TSh ${sale.total_amount.toLocaleString()}</td>
+                </tr>
+                ${sale.sale_type === 'Debt' ? `
+                <tr>
+                    <td colspan="4" style="text-align: right;">Amount Paid:</td>
+                    <td style="text-align: right;">TSh ${sale.paid_amount.toLocaleString()}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="text-align: right; color: var(--danger-color);">Remaining Debt:</td>
+                    <td style="text-align: right; color: var(--danger-color);">TSh ${(sale.total_amount - sale.paid_amount).toLocaleString()}</td>
+                </tr>
+                ` : ''}
+            </tfoot>
+        </table>
+    `;
+}
+
+function closeSaleModal() {
+    document.getElementById('saleDetailsModal').classList.remove('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1142 @@
+{% extends 'stock_base.html' %}
+
+{% block title %}All Products - Gdence{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">All Products</h1>
+            <p class="page-subtitle">Manage new and used products</p>
+        </div>
+        <div class="header-buttons">
+            <button class="btn-primary" onclick="openAddNewModal()">
+                <i class="fas fa-box"></i> Add New Product
+            </button>
+            <button class="btn-secondary" onclick="openAddUsedModal()">
+                <i class="fas fa-recycle"></i> Add Used Product
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Box -->
+    <div style="margin-bottom: 20px;">
+        <div style="position: relative; max-width: 500px;">
+            <i class="fas fa-search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
+            <input type="text" id="productSearch" placeholder="Search by part number or name..." 
+                   style="width: 100%; padding: 12px 16px 12px 48px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 14px;"
+                   onkeyup="searchProducts()">
+            <i class="fas fa-times" id="clearSearch" onclick="clearSearch()" 
+               style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text-gray); cursor: pointer; display: none;"></i>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Part Number</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Initial Qty</th>
+                    <th>Sold</th>
+                    <th>Added Stock</th>
+                    <th>Remain</th>
+                    <th>Status</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for part in new_parts %}
+                <tr>
+                    <td><span class="badge badge-info">New</span></td>
+                    <td>{{ part.part_number|default:"-" }}</td>
+                    <td>{{ part.name }}</td>
+                    <td>TSh {{ part.unit_price|floatformat:0 }}</td>
+                    <td>{{ part.initial_quantity }}</td>
+                    <td>{{ part.sold_quantity }}</td>
+                    <td>{{ part.added_stock }}</td>
+                    <td>{{ part.current_quantity }}</td>
+                    <td>
+                        {% if part.is_out_of_stock %}
+                            <span class="badge badge-danger">Out of Stock</span>
+                        {% elif part.is_low_stock %}
+                            <span class="badge badge-warning">Low Stock</span>
+                        {% else %}
+                            <span class="badge badge-success">In Stock</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if part.current_quantity > 0 %}
+                        <button class="btn-success btn-sm" onclick="addStock({{ part.id }}, 'new', '{{ part.name }}')" title="Add Stock">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </button>
+                        {% else %}
+                        <button class="btn-warning btn-sm" onclick="addStock({{ part.id }}, 'new', '{{ part.name }}')" title="Out of Stock - Add Stock">
+                            <i class="fas fa-exclamation-triangle"></i> Add Stock
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn-icon btn-edit" onclick='openEditNewModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", {{ part.unit_price }}, {{ part.minimum_stock_level }})' title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon btn-delete" onclick="deleteNewPart({{ part.id }})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% for part in used_parts %}
+                <tr>
+                    <td><span class="badge badge-secondary">Used</span></td>
+                    <td>{{ part.part_number|default:"-" }}</td>
+                    <td>{{ part.name }}</td>
+                    <td>TSh {{ part.whole_price|floatformat:0 }}</td>
+                    <td>{{ part.initial_quantity }}</td>
+                    <td>{{ part.sold_quantity }}</td>
+                    <td>{{ part.added_stock }}</td>
+                    <td>{{ part.current_quantity }}</td>
+                    <td>
+                        {% if part.is_out_of_stock %}
+                            <span class="badge badge-danger">Out of Stock</span>
+                        {% else %}
+                            <span class="badge badge-success">In Stock</span>
+                        {% endif %}
+                        <!-- Debug: {{ part.components_stock_status }} -->
+                    </td>
+                    <td>
+                        {% if part.current_quantity > 0 %}
+                        <button class="btn-success btn-sm" onclick="addStock({{ part.id }}, 'used', '{{ part.name }}')" title="Add Stock">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </button>
+                        {% else %}
+                        <button class="btn-warning btn-sm" onclick="addStock({{ part.id }}, 'used', '{{ part.name }}')" title="Out of Stock - Add Stock">
+                            <i class="fas fa-exclamation-triangle"></i> Add Stock
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn-icon btn-edit" onclick='openEditUsedModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", "{{ part.condition }}", {{ part.whole_price }}, {{ part.initial_quantity }})' title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon btn-delete" onclick="deleteUsedPart({{ part.id }})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% if part.can_be_broken_down %}
+                        <button class="btn-icon btn-components" onclick="viewComponents({{ part.id }}, '{{ part.name }}')" title="View Components">
+                            <i class="fas fa-cogs"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not new_parts and not used_parts %}
+                <tr>
+                    <td colspan="12" style="text-align: center; padding: 40px;">No products registered</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- New Part Modal -->
+    <div id="newPartModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-inner">
+                <div class="modal-header">
+                    <h2 id="newModalTitle">Add New Product</h2>
+                    <button class="modal-close" onclick="closeNewModal()">&times;</button>
+                </div>
+                <form id="newPartForm" method="POST">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="part_number">Part Number (Optional)</label>
+                        <input type="text" id="part_number" name="part_number" placeholder="Enter part number">
+                    </div>
+                    <div class="form-group">
+                        <label for="name">Name <span class="required">*</span></label>
+                        <input type="text" id="name" name="name" required placeholder="Enter product name">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit_price">Unit Price <span class="required">*</span></label>
+                        <input type="number" id="unit_price" name="unit_price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="initial_quantity">Initial Quantity <span class="required">*</span></label>
+                        <input type="number" id="initial_quantity" name="initial_quantity" required placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="minimum_stock_level">Minimum Stock Level</label>
+                        <input type="number" id="minimum_stock_level" name="minimum_stock_level" value="5" placeholder="5">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="description">Description (Optional)</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Enter description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeNewModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Used Part Modal -->
+    <div id="usedPartModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-inner">
+                <div class="modal-header">
+                    <h2 id="usedModalTitle">Add Used Product</h2>
+                    <button class="modal-close" onclick="closeUsedModal()">&times;</button>
+                </div>
+                <form id="usedPartForm" method="POST">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="used_part_number">Part Number (Optional)</label>
+                        <input type="text" id="used_part_number" name="part_number" placeholder="Enter part number">
+                    </div>
+                    <div class="form-group">
+                        <label for="used_name">Name <span class="required">*</span></label>
+                        <input type="text" id="used_name" name="name" required placeholder="Enter product name">
+                    </div>
+                    <div class="form-group">
+                        <label for="condition">Condition <span class="required">*</span></label>
+                        <select id="condition" name="condition" required>
+                            <option value="excellent">Excellent</option>
+                            <option value="good" selected>Good</option>
+                            <option value="fair">Fair</option>
+                            <option value="poor">Poor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="whole_price">Whole Price <span class="required">*</span></label>
+                        <input type="number" id="whole_price" name="whole_price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="used_initial_quantity">Initial Quantity <span class="required">*</span></label>
+                        <input type="number" id="used_initial_quantity" name="initial_quantity" required placeholder="0">
+                    </div>
+                    
+                    <!-- Components Section -->
+                    <div class="form-group full-width" id="componentsSection">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label style="margin: 0;">Components (if applicable)</label>
+                            <button type="button" class="btn-primary" onclick="addComponentRow()" style="padding: 8px 16px; font-size: 13px;">
+                                <i class="fas fa-plus"></i> Add Component
+                            </button>
+                        </div>
+                        <div id="componentsContainer">
+                            <!-- Component rows will be added here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="used_description">Description (Optional)</label>
+                        <textarea id="used_description" name="description" rows="3" placeholder="Enter description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeUsedModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Components View Modal -->
+    <div id="componentsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-inner">
+                <div class="modal-header">
+                    <h2 id="componentsModalTitle">Components</h2>
+                    <button class="modal-close" onclick="closeComponentsModal()">&times;</button>
+                </div>
+                <div style="padding: 24px;">
+                    <div id="componentsTableContainer">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Component Name</th>
+                                    <th>Unit Price</th>
+                                    <th>Initial Qty</th>
+                                    <th>Sold</th>
+                                    <th>Remain</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="componentsTableBody">
+                                <!-- Components will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeComponentsModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --accent-blue: #2563EB;
+        --text-dark: #0F172A;
+        --border-color: #E2E8F0;
+    }
+
+    .header-buttons {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 12px 24px !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        border: none !important;
+        font-size: 14px !important;
+        transition: all 0.2s !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-family: 'Inter', sans-serif !important;
+        line-height: 1.5 !important;
+        text-decoration: none !important;
+    }
+
+    .btn-primary {
+        background: #2563EB !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background: #1D4ED8 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6B7280 !important;
+        color: white !important;
+    }
+
+    .btn-secondary:hover {
+        background: #4B5563 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+    }
+
+    .table-container {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        margin-top: 24px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table thead {
+        background: #F8FAFC;
+    }
+
+    .data-table th {
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-gray);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .data-table td {
+        padding: 16px;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 14px;
+        color: var(--text-dark);
+    }
+
+    .data-table tbody tr:hover {
+        background: #F8FAFC;
+    }
+
+    .badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: rgba(34, 197, 94, 0.1);
+        color: #166534;
+    }
+
+    .badge-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: #92400E;
+    }
+
+    .badge-danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: #991B1B;
+    }
+
+    .badge-info {
+        background: rgba(59, 130, 246, 0.1);
+        color: #1E40AF;
+    }
+
+    .badge-secondary {
+        background: rgba(107, 114, 128, 0.1);
+        color: #374151;
+    }
+
+    .btn-icon {
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin: 0 4px;
+    }
+
+    .btn-edit {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3B82F6;
+    }
+
+    .btn-edit:hover {
+        background: rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-delete {
+        background: rgba(239, 68, 68, 0.1);
+        color: #EF4444;
+    }
+
+    .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-components {
+        background: rgba(168, 85, 247, 0.1);
+        color: #A855F7;
+    }
+
+    .btn-components:hover {
+        background: rgba(168, 85, 247, 0.2);
+    }
+
+    /* Force SweetAlert to appear on top of everything */
+    .swal2-container {
+        z-index: 999999 !important;
+    }
+
+    .swal2-popup {
+        z-index: 999999 !important;
+    }
+
+    /* Modal Overlay - Covers entire viewport */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    /* Modal Content Wrapper */
+    .modal-content {
+        display: contents;
+    }
+
+    /* Actual Modal Box - Centered */
+    .modal-inner {
+        display: inline-block;
+        background: white;
+        border-radius: 16px;
+        width: 95%;
+        max-width: 950px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .modal-header {
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text-dark);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: var(--text-gray);
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+
+    .modal-close:hover {
+        background: #F3F4F6;
+    }
+
+    .modal-content form {
+        padding: 24px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .component-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding: 12px;
+        background: #F9FAFB;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .component-row input {
+        margin-bottom: 0;
+    }
+
+    .btn-remove-component {
+        background: #EF4444;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+        height: fit-content;
+        align-self: end;
+    }
+
+    .btn-remove-component:hover {
+        background: #DC2626;
+    }
+
+    .form-group label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+    }
+
+    .required {
+        color: #EF4444;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--accent-blue);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563EB;
+    }
+
+    .btn-secondary {
+        background: #F3F4F6;
+        color: var(--text-dark);
+    }
+
+    .btn-secondary:hover {
+        background: #E5E7EB;
+    }
+
+    .btn-success {
+        background: #10B981;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+    }
+
+    .btn-warning {
+        background: #F59E0B;
+        color: white;
+    }
+
+    .btn-warning:hover {
+        background: #D97706;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+
+    .btn-sm:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-sm i {
+        font-size: 11px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let isNewEditMode = false;
+    let newEditId = null;
+    let isUsedEditMode = false;
+    let usedEditId = null;
+
+    // NEW PART MODAL FUNCTIONS
+    function openAddNewModal() {
+        isNewEditMode = false;
+        newEditId = null;
+        document.getElementById('newModalTitle').textContent = 'Add New Product';
+        document.getElementById('newPartForm').reset();
+        document.getElementById('newPartModal').classList.add('active');
+    }
+
+    function openEditNewModal(id, partNumber, name, description, unitPrice, minLevel) {
+        isNewEditMode = true;
+        newEditId = id;
+        document.getElementById('newModalTitle').textContent = 'Edit Product';
+        document.getElementById('part_number').value = partNumber;
+        document.getElementById('name').value = name;
+        document.getElementById('description').value = description;
+        document.getElementById('unit_price').value = unitPrice;
+        document.getElementById('minimum_stock_level').value = minLevel;
+        document.getElementById('newPartModal').classList.add('active');
+    }
+
+    function closeNewModal() {
+        document.getElementById('newPartModal').classList.remove('active');
+    }
+
+    // USED PART MODAL FUNCTIONS
+    function openAddUsedModal() {
+        isUsedEditMode = false;
+        usedEditId = null;
+        document.getElementById('usedModalTitle').textContent = 'Add Used Product';
+        document.getElementById('usedPartForm').reset();
+        document.getElementById('usedPartModal').classList.add('active');
+    }
+
+    function openEditUsedModal(id, partNumber, name, description, condition, wholePrice, initialQty) {
+        isUsedEditMode = true;
+        usedEditId = id;
+        document.getElementById('usedModalTitle').textContent = 'Edit Used Product';
+        document.getElementById('used_part_number').value = partNumber;
+        document.getElementById('used_name').value = name;
+        document.getElementById('used_description').value = description;
+        document.getElementById('condition').value = condition;
+        document.getElementById('whole_price').value = wholePrice;
+        document.getElementById('used_initial_quantity').value = initialQty;
+        document.getElementById('usedPartModal').classList.add('active');
+    }
+
+    function closeUsedModal() {
+        document.getElementById('usedPartModal').classList.remove('active');
+        // Clear components when closing
+        document.getElementById('componentsContainer').innerHTML = '';
+    }
+
+    // COMPONENT MANAGEMENT FUNCTIONS
+    let componentCounter = 0;
+
+    function addComponentRow() {
+        componentCounter++;
+        const container = document.getElementById('componentsContainer');
+        const row = document.createElement('div');
+        row.className = 'component-row';
+        row.id = `component-row-${componentCounter}`;
+        row.innerHTML = `
+            <div>
+                <label style="font-size: 13px; margin-bottom: 4px;">Component Name</label>
+                <input type="text" name="component_name[]" placeholder="Enter component name" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; margin-bottom: 4px;">Component Price</label>
+                <input type="number" name="component_price[]" step="0.01" placeholder="0.00" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; margin-bottom: 4px;">Initial Quantity</label>
+                <input type="number" name="component_quantity[]" placeholder="0" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+            </div>
+            <button type="button" class="btn-remove-component" onclick="removeComponentRow(${componentCounter})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeComponentRow(id) {
+        const row = document.getElementById(`component-row-${id}`);
+        if (row) {
+            row.remove();
+        }
+    }
+
+    // NEW PART FORM SUBMISSION
+    document.getElementById('newPartForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const url = isNewEditMode 
+            ? "{% url 'stock:new_part_edit' 0 %}".replace('0', newEditId)
+            : "{% url 'stock:new_part_create' %}";
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Hongera!',
+                    text: data.message,
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kosa!',
+                    text: data.message,
+                    confirmButtonColor: '#EF4444'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Kosa!',
+                text: 'An error occurred',
+                confirmButtonColor: '#EF4444'
+            });
+        });
+    });
+
+    // USED PART FORM SUBMISSION
+    document.getElementById('usedPartForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const url = isUsedEditMode 
+            ? "{% url 'stock:used_part_edit' 0 %}".replace('0', usedEditId)
+            : "{% url 'stock:used_part_create' %}";
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Hongera!',
+                    text: data.message,
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kosa!',
+                    text: data.message,
+                    confirmButtonColor: '#EF4444'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Kosa!',
+                text: 'An error occurred',
+                confirmButtonColor: '#EF4444'
+            });
+        });
+    });
+
+    // DELETE FUNCTIONS
+    function deleteNewPart(id) {
+        Swal.fire({
+            title: 'Una uhakika?',
+            text: 'Bidhaa itafutwa kabisa!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Ndio, Futa!',
+            cancelButtonText: 'Ghairi'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                fetch("{% url 'stock:new_part_delete' 0 %}".replace('0', id), {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: data.message,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            location.reload();
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // COMPONENTS MODAL FUNCTIONS
+    function viewComponents(usedPartId, partName) {
+        document.getElementById('componentsModalTitle').textContent = `Components - ${partName}`;
+        document.getElementById('componentsTableBody').innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Loading...</td></tr>';
+        document.getElementById('componentsModal').classList.add('active');
+        
+        // Fetch components
+        fetch(`/stock/components/${usedPartId}/json/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('componentsTableBody');
+            if (data.components && data.components.length > 0) {
+                tbody.innerHTML = data.components.map(comp => `
+                    <tr>
+                        <td>${comp.name}</td>
+                        <td>TSh ${parseFloat(comp.unit_price).toLocaleString()}</td>
+                        <td>${comp.initial_quantity}</td>
+                        <td>${comp.sold_quantity}</td>
+                        <td>${comp.current_quantity}</td>
+                        <td>
+                            ${comp.current_quantity === 0 
+                                ? '<span class="badge badge-danger">Out of Stock</span>' 
+                                : '<span class="badge badge-success">In Stock</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No components found</td></tr>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('componentsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #EF4444;">Error loading components</td></tr>';
+        });
+    }
+
+    function closeComponentsModal() {
+        document.getElementById('componentsModal').classList.remove('active');
+    }
+
+    function deleteUsedPart(id) {
+        Swal.fire({
+            title: 'Una uhakika?',
+            text: 'Bidhaa itafutwa kabisa!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Ndio, Futa!',
+            cancelButtonText: 'Ghairi'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                fetch("{% url 'stock:used_part_delete' 0 %}".replace('0', id), {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: data.message,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            location.reload();
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Close modals when clicking outside
+    document.getElementById('newPartModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeNewModal();
+        }
+    });
+
+    document.getElementById('usedPartModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeUsedModal();
+        }
+    });
+
+    // Function to add stock to products
+    function addStock(id, type, name) {
+        Swal.fire({
+            title: `Add Stock - ${name}`,
+            html: `
+                <div style="text-align: left;">
+                    <p>Enter the quantity to add to stock:</p>
+                    <input type="number" id="stockQuantity" class="swal2-input" placeholder="Enter quantity" min="1" value="1">
+                    <p style="margin-top: 15px; font-size: 12px; color: #666;">
+                        This will increase the current stock quantity for ${name}
+                    </p>
+                </div>
+            `,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Add Stock',
+            cancelButtonText: 'Cancel',
+            preConfirm: () => {
+                const quantity = document.getElementById('stockQuantity').value;
+                if (!quantity || quantity <= 0) {
+                    Swal.showValidationMessage('Please enter a valid quantity');
+                    return false;
+                }
+                return parseInt(quantity);
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const quantity = result.value;
+                
+                // Send AJAX request to update stock
+                fetch(`/stock/add-stock/${type}/${id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        quantity: quantity
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Stock Added!',
+                            text: `Successfully added ${quantity} units to ${name}`,
+                            timer: 2000
+                        });
+                        // Reload page to show updated stock
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Failed to add stock'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to update stock'
+                    });
+                });
+            }
+        });
+    }
+
+    // Search products function
+    function searchProducts() {
+        const searchInput = document.getElementById('productSearch');
+        const filter = searchInput.value.toLowerCase();
+        const table = document.querySelector('.data-table tbody');
+        const rows = table.getElementsByTagName('tr');
+        const clearBtn = document.getElementById('clearSearch');
+        
+        // Show/hide clear button
+        clearBtn.style.display = filter ? 'block' : 'none';
+        
+        let visibleCount = 0;
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            
+            // Skip the "no products" row
+            if (row.cells.length === 1) continue;
+            
+            const partNumber = row.cells[1].textContent.toLowerCase();
+            const name = row.cells[2].textContent.toLowerCase();
+            
+            if (partNumber.includes(filter) || name.includes(filter)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
+    function clearSearch() {
+        document.getElementById('productSearch').value = '';
+        searchProducts();
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}
