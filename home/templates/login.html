@@ -262,6 +262,79 @@
         }
 
 
+        /* Mobile Login Button */
+        .mobile-login-btn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 18px 35px;
+            font-size: 1.1em;
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(230, 126, 34, 0.5);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mobile-login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(230, 126, 34, 0.6);
+        }
+
+        .mobile-login-btn i {
+            margin-right: 8px;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            font-size: 28px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
         /* Responsive Design */
         @media (max-width: 968px) {
             .login-wrapper {
@@ -270,7 +343,7 @@
 
             .brand-section {
                 padding: 40px 30px;
-                min-height: 40vh;
+                min-height: 100vh;
             }
 
             .car-icon {
@@ -292,7 +365,17 @@
             }
 
             .form-section {
-                padding: 40px 30px;
+                display: none;
+            }
+
+            .mobile-login-btn {
+                display: block;
+            }
+
+            .modal-overlay .login-container {
+                margin: 20px;
+                max-height: 90vh;
+                overflow-y: auto;
             }
         }
 
@@ -327,12 +410,37 @@
                 padding: 30px 20px;
             }
 
-            .login-header h2 {
-                font-size: 2em;
+            .mobile-login-btn {
+                padding: 14px 28px;
+                font-size: 0.95em;
+                bottom: 20px;
+                right: 20px;
             }
 
-            .login-header p {
-                font-size: 1em;
+            .modal-overlay .login-container {
+                padding: 25px 20px;
+            }
+
+            .modal-overlay .login-header h2 {
+                font-size: 1.5em;
+            }
+
+            .modal-overlay .login-header p {
+                font-size: 0.85em;
+            }
+
+            .modal-overlay .form-group label {
+                font-size: 0.85em;
+            }
+
+            .modal-overlay .form-group input {
+                padding: 10px 12px;
+                font-size: 0.9em;
+            }
+
+            .modal-overlay .login-btn {
+                padding: 11px;
+                font-size: 0.9em;
             }
         }
     </style>
@@ -384,7 +492,78 @@
         </div>
     </div>
 
+    <!-- Mobile Login Button -->
+    <button class="mobile-login-btn" id="mobileLoginBtn">
+        <i class="fas fa-sign-in-alt"></i>
+        Login
+    </button>
+
+    <!-- Modal Overlay for Mobile -->
+    <div class="modal-overlay" id="modalOverlay">
+        <button class="modal-close" id="modalClose">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="login-container">
+            <div class="login-header">
+                <h2>Welcome Back</h2>
+                <p>Please login to your account</p>
+            </div>
+
+            <form method="POST" class="login-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username-mobile">
+                        <i class="fas fa-user"></i>
+                        Username
+                    </label>
+                    <input type="text" id="username-mobile" name="username" required 
+                           placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password-mobile">
+                        <i class="fas fa-lock"></i>
+                        Password
+                    </label>
+                    <input type="password" id="password-mobile" name="password" required
+                           placeholder="Enter your password">
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Mobile login modal functionality
+        const mobileLoginBtn = document.getElementById('mobileLoginBtn');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalClose = document.getElementById('modalClose');
+
+        // Open modal
+        if (mobileLoginBtn) {
+            mobileLoginBtn.addEventListener('click', function() {
+                modalOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+
+        // Close modal
+        if (modalClose) {
+            modalClose.addEventListener('click', function() {
+                modalOverlay.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            });
+        }
+
+        // Close modal when clicking outside the login container
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    modalOverlay.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        }
+
         // Display Django messages using SweetAlert
         {% if messages %}
             {% for message in messages %}
