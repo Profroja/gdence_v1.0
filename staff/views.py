@@ -136,6 +136,16 @@ def create_sale(request):
                 created_by=request.user
             )
             
+            # Create payment history record for initial debt payment
+            if sale_type == 'debt' and paid_amount > 0:
+                from stock.models import PaymentHistory
+                PaymentHistory.objects.create(
+                    sale=sale,
+                    amount=paid_amount,
+                    notes='Initial payment at time of sale',
+                    created_by=request.user
+                )
+            
             # Create sale items and update inventory
             for item_data in items:
                 product_id = item_data['product_id']
@@ -267,7 +277,7 @@ def all_sales(request):
 
 @login_required(login_url='login')
 def sale_details(request, sale_id):
-    if request.user.role != 'staff':
+    if request.user.role not in ['staff', 'stock']:
         return JsonResponse({'success': False, 'message': 'No permission'}, status=403)
     
     try:
@@ -276,13 +286,21 @@ def sale_details(request, sale_id):
         # Get sale items
         items = []
         for item in sale.items.all():
-            items.append({
+            item_data = {
                 'name': item.item_name,
                 'type': item.get_item_type_display(),
                 'quantity': item.quantity,
                 'unit_price': float(item.unit_price),
                 'total_price': float(item.total_price),
-            })
+            }
+            
+            # Add parent product info for components
+            if item.item_type == 'component' and item.component:
+                item_data['parent_product'] = item.component.used_spare_part.name
+            else:
+                item_data['parent_product'] = None
+            
+            items.append(item_data)
         
         sale_data = {
             'receipt_number': sale.receipt_number,
@@ -522,6 +540,13 @@ def expenditure(request):
         diagnosis_date__month=selected_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
+    # Get garage labor revenue for selected month
+    from garage.models import GarageInvoice
+    garage_labor_revenue = GarageInvoice.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    ).aggregate(total=Sum('labor_charge'))['total'] or Decimal('0.00')
+    
     # Get opening balance for selected month
     from .models import OpeningBalance
     from datetime import date
@@ -530,7 +555,7 @@ def expenditure(request):
     opening_balance = opening_balance_obj.amount if opening_balance_obj else Decimal('0.00')
     
     # Total revenue for the month (cash actually received + opening balance)
-    total_revenue = regular_sales_revenue + debt_payments_received + car_diagnosing_revenue + opening_balance
+    total_revenue = regular_sales_revenue + debt_payments_received + car_diagnosing_revenue + garage_labor_revenue + opening_balance
     
     # Calculate remaining amount: Total Revenue (including opening balance) - Expenditure
     remaining_amount = total_revenue - total_expenditure
@@ -548,6 +573,7 @@ def expenditure(request):
         'total_expenditure': total_expenditure,
         'total_debts': total_debts,
         'remaining_amount': remaining_amount,
+        'garage_labor_revenue': garage_labor_revenue,
         'expenditures': all_expenditures,
         'expenditure_count': month_expenditures.count(),
     }
@@ -678,7 +704,7 @@ def stock_status_api(request):
                 'type': 'new',
                 'current_quantity': part.current_quantity,
                 'minimum_stock_level': part.minimum_stock_level,
-                'price': float(part.unit_price)
+                'price': float(part.selling_price)
             })
         
         # Get used spare parts
@@ -690,7 +716,7 @@ def stock_status_api(request):
                 'type': 'used',
                 'current_quantity': part.current_quantity,
                 'minimum_stock_level': 5,  # Default minimum for used parts
-                'price': float(part.whole_price)
+                'price': float(part.whole_selling_price)
             })
         
         # Get components
@@ -702,7 +728,7 @@ def stock_status_api(request):
                 'type': 'component',
                 'current_quantity': comp.current_quantity,
                 'minimum_stock_level': 2,  # Default minimum for components
-                'price': float(comp.unit_price)
+                'price': float(comp.selling_price)
             })
         
         return JsonResponse({'success': True, 'products': products})
@@ -983,6 +1009,15 @@ def funga_hesabu(request):
     car_diagnosing_count = car_diagnosing.count()
     car_diagnosing_amount = car_diagnosing.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
+    # Garage Labor Revenue
+    from garage.models import GarageInvoice
+    garage_labor = GarageInvoice.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    )
+    garage_labor_count = garage_labor.count()
+    garage_labor_amount = garage_labor.aggregate(total=Sum('labor_charge'))['total'] or Decimal('0.00')
+    
     # Expenditure
     expenditures = Expenditure.objects.filter(
         date__year=selected_year,
@@ -992,7 +1027,7 @@ def funga_hesabu(request):
     expenditure_amount = expenditures.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
     # Total Revenue (Cash received)
-    total_revenue = regular_sales_amount + debt_payments_amount + car_diagnosing_amount + opening_balance
+    total_revenue = regular_sales_amount + debt_payments_amount + car_diagnosing_amount + garage_labor_amount + opening_balance
     
     # Total Sales (including debt sales created)
     total_sales_amount = regular_sales_amount + debt_sales_amount
@@ -1039,9 +1074,684 @@ def funga_hesabu(request):
         'car_diagnosing_count': car_diagnosing_count,
         'car_diagnosing_amount': car_diagnosing_amount,
         
+        # Garage Labor
+        'garage_labor_count': garage_labor_count,
+        'garage_labor_amount': garage_labor_amount,
+        
         # Expenditure
         'expenditure_count': expenditure_count,
         'expenditure_amount': expenditure_amount,
     }
     
     return render(request, 'funga_hesabu.html', context)
+
+@login_required(login_url='login')
+def thermal_receipt(request, sale_id):
+    if request.user.role != 'staff':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('logout')
+    
+    from django.shortcuts import get_object_or_404
+    from django.http import HttpResponse
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib import colors
+    from io import BytesIO
+    
+    sale = get_object_or_404(Sale, id=sale_id)
+    
+    # Create PDF buffer
+    buffer = BytesIO()
+    
+    # Create PDF with 80mm width (thermal printer size)
+    width = 80 * mm
+    height = 297 * mm  # A4 height, will auto-adjust
+    
+    # Create canvas
+    p = canvas.Canvas(buffer, pagesize=(width, height))
+    
+    # Set font
+    p.setFont("Courier", 8)
+    
+    # Starting Y position
+    y = height - 10 * mm
+    
+    # Header
+    p.setFont("Courier-Bold", 10)
+    p.drawCentredString(width / 2, y, "GDENCE AUTOSPARE PARTS")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawCentredString(width / 2, y, "Spare Parts & Accessories")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, "Tel: +255 787 450 854")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, "Email: info@gdenceinvestmenst.co.tz")
+    y -= 5 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Receipt info
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, f"Receipt #: {sale.receipt_number}")
+    y -= 3 * mm
+    p.drawString(5 * mm, y, f"Date: {sale.created_at.strftime('%d/%m/%Y %H:%M')}")
+    y -= 3 * mm
+    cashier = sale.created_by.first_name if sale.created_by else "N/A"
+    p.drawString(5 * mm, y, f"Cashier: {cashier}")
+    y -= 3 * mm
+    
+    if sale.customer:
+        p.drawString(5 * mm, y, f"Customer: {sale.customer.name}")
+        y -= 3 * mm
+        if sale.customer.mobile_number:
+            p.drawString(5 * mm, y, f"Phone: {sale.customer.mobile_number}")
+            y -= 3 * mm
+    
+    p.drawString(5 * mm, y, f"Type: {sale.get_sale_type_display()}")
+    y -= 5 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Items header
+    p.setFont("Courier-Bold", 7)
+    p.drawString(5 * mm, y, "Item")
+    p.drawRightString(width - 5 * mm, y, "Amount")
+    y -= 4 * mm
+    
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 4 * mm
+    
+    # Items
+    p.setFont("Courier", 7)
+    for item in sale.items.all():
+        # Item name
+        p.setFont("Courier-Bold", 7)
+        p.drawString(5 * mm, y, item.item_name[:25])
+        y -= 3 * mm
+        
+        # Show parent product for components
+        if item.item_type == 'component' and item.component:
+            p.setFont("Courier", 5)
+            parent_name = f"(from {item.component.used_spare_part.name[:20]})"
+            p.drawString(7 * mm, y, parent_name)
+            y -= 3 * mm
+        
+        # Quantity and price
+        p.setFont("Courier", 6)
+        qty_price = f"{item.quantity} x TSh {item.unit_price:,.0f}"
+        total = f"TSh {item.total_price:,.0f}"
+        p.drawString(7 * mm, y, qty_price)
+        p.drawRightString(width - 5 * mm, y, total)
+        y -= 4 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 4 * mm
+    
+    # Totals
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, "Subtotal:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {sale.subtotal:,.0f}")
+    y -= 3 * mm
+    
+    if sale.discount > 0:
+        p.drawString(5 * mm, y, "Discount:")
+        p.drawRightString(width - 5 * mm, y, f"- TSh {sale.discount:,.0f}")
+        y -= 3 * mm
+    
+    # Grand total
+    p.setFont("Courier-Bold", 9)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 4 * mm
+    p.drawString(5 * mm, y, "TOTAL:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {sale.total_amount:,.0f}")
+    y -= 5 * mm
+    
+    # Double line
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 1 * mm
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 5 * mm
+    
+    # Payment info
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, f"Payment: {sale.get_payment_type_display()}")
+    y -= 3 * mm
+    
+    if sale.sale_type == 'regular':
+        p.drawString(5 * mm, y, f"Paid: TSh {sale.paid_amount:,.0f}")
+        y -= 3 * mm
+        if sale.paid_amount > sale.total_amount:
+            change = sale.paid_amount - sale.total_amount
+            p.drawString(5 * mm, y, f"Change: TSh {change:,.0f}")
+            y -= 3 * mm
+    elif sale.sale_type == 'debt':
+        p.drawString(5 * mm, y, f"Paid: TSh {sale.paid_amount:,.0f}")
+        y -= 3 * mm
+        p.setFont("Courier-Bold", 7)
+        p.drawString(5 * mm, y, f"Debt: TSh {sale.remaining_debt:,.0f}")
+        y -= 3 * mm
+        if sale.due_date:
+            p.setFont("Courier", 7)
+            p.drawString(5 * mm, y, f"Due: {sale.due_date.strftime('%d/%m/%Y')}")
+            y -= 3 * mm
+    
+    y -= 2 * mm
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Footer
+    p.setFont("Courier", 7)
+    p.drawCentredString(width / 2, y, "Thank you for your business!")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, "Please come again")
+    y -= 4 * mm
+    p.setFont("Courier", 6)
+    p.drawCentredString(width / 2, y, sale.receipt_number)
+    
+    # Save PDF
+    p.showPage()
+    p.save()
+    
+    # Get PDF from buffer
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Create response
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="receipt_{sale.receipt_number}.pdf"'
+    
+    return response
+
+@login_required(login_url='login')
+def authorize_stock_release(request, sale_id):
+    """Create stock authorization record when staff confirms stock release"""
+    if request.user.role != 'staff':
+        return JsonResponse({'success': False, 'message': 'Unauthorized'})
+    
+    if request.method == 'POST':
+        from django.shortcuts import get_object_or_404
+        from stock.models import StockAuthorization
+        
+        sale = get_object_or_404(Sale, id=sale_id)
+        
+        # Check if already authorized
+        if hasattr(sale, 'stock_authorization'):
+            return JsonResponse({
+                'success': False,
+                'message': 'Stock already authorized for this sale'
+            })
+        
+        # Create authorization
+        try:
+            authorization = StockAuthorization.objects.create(
+                sale=sale,
+                authorized_by=request.user,
+                notes=request.POST.get('notes', '')
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Stock release authorized successfully',
+                'authorization_id': authorization.id
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+@login_required(login_url='login')
+def stock_authorization_receipt(request, sale_id):
+    """Generate stock authorization receipt PDF for stock personnel"""
+    if request.user.role != 'staff':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('logout')
+    
+    from django.shortcuts import get_object_or_404
+    from django.http import HttpResponse
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from io import BytesIO
+    
+    sale = get_object_or_404(Sale, id=sale_id)
+    
+    # Create PDF buffer
+    buffer = BytesIO()
+    
+    # Create PDF with 80mm width (thermal printer size)
+    width = 80 * mm
+    height = 297 * mm
+    
+    # Create canvas
+    p = canvas.Canvas(buffer, pagesize=(width, height))
+    
+    # Set font
+    p.setFont("Courier", 8)
+    
+    # Starting Y position
+    y = height - 10 * mm
+    
+    # Header
+    p.setFont("Courier-Bold", 10)
+    p.drawCentredString(width / 2, y, "STOCK AUTHORIZATION")
+    y -= 4 * mm
+    p.setFont("Courier-Bold", 9)
+    p.drawCentredString(width / 2, y, "GDENCE AUTOSPARE PARTS")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawCentredString(width / 2, y, "Stock Release Document")
+    y -= 5 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Authorization info
+    p.setFont("Courier-Bold", 8)
+    p.drawString(5 * mm, y, "AUTHORIZATION DETAILS")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, f"Receipt #: {sale.receipt_number}")
+    y -= 3 * mm
+    p.drawString(5 * mm, y, f"Date: {sale.created_at.strftime('%d/%m/%Y %H:%M')}")
+    y -= 3 * mm
+    
+    # Check if authorized
+    if hasattr(sale, 'stock_authorization'):
+        auth = sale.stock_authorization
+        p.drawString(5 * mm, y, f"Authorized By: {auth.authorized_by.first_name if auth.authorized_by else 'N/A'}")
+        y -= 3 * mm
+        p.drawString(5 * mm, y, f"Auth Time: {auth.authorized_at.strftime('%d/%m/%Y %H:%M')}")
+        y -= 3 * mm
+    else:
+        p.drawString(5 * mm, y, f"Authorized By: {request.user.first_name}")
+        y -= 3 * mm
+        p.drawString(5 * mm, y, f"Auth Time: PENDING")
+        y -= 3 * mm
+    
+    if sale.customer:
+        p.drawString(5 * mm, y, f"Customer: {sale.customer.name}")
+        y -= 3 * mm
+        if sale.customer.mobile_number:
+            p.drawString(5 * mm, y, f"Phone: {sale.customer.mobile_number}")
+            y -= 3 * mm
+    
+    y -= 2 * mm
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Items header
+    p.setFont("Courier-Bold", 8)
+    p.drawString(5 * mm, y, "ITEMS TO RELEASE")
+    y -= 4 * mm
+    
+    # Table header
+    p.setFont("Courier-Bold", 7)
+    p.drawString(5 * mm, y, "Item")
+    p.drawRightString(width - 5 * mm, y, "Qty")
+    y -= 3 * mm
+    
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 3 * mm
+    
+    # Items - Table rows
+    p.setFont("Courier", 6)
+    for item in sale.items.all():
+        # Item name (left aligned)
+        item_name = item.item_name[:28]
+        p.drawString(5 * mm, y, item_name)
+        
+        # Quantity (right aligned)
+        p.setFont("Courier-Bold", 7)
+        p.drawRightString(width - 5 * mm, y, f"{item.quantity}")
+        y -= 3 * mm
+        
+        # Show parent product for components (indented)
+        if item.item_type == 'component' and item.component:
+            p.setFont("Courier", 5)
+            parent_name = f"(from {item.component.used_spare_part.name[:24]})"
+            p.drawString(7 * mm, y, parent_name)
+            y -= 3 * mm
+        
+        p.setFont("Courier", 6)
+        y -= 1 * mm  # Small spacing between items
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Total items
+    p.setFont("Courier-Bold", 8)
+    total_items = sum(item.quantity for item in sale.items.all())
+    p.drawString(5 * mm, y, f"TOTAL ITEMS: {total_items}")
+    y -= 5 * mm
+    
+    # Double line
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 1 * mm
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 6 * mm
+    
+    # Instructions
+    p.setFont("Courier-Bold", 7)
+    p.drawString(5 * mm, y, "INSTRUCTIONS:")
+    y -= 3 * mm
+    p.setFont("Courier", 6)
+    p.drawString(5 * mm, y, "1. Verify all items listed above")
+    y -= 3 * mm
+    p.drawString(5 * mm, y, "2. Check stock availability")
+    y -= 3 * mm
+    p.drawString(5 * mm, y, "3. Release items to customer")
+    y -= 3 * mm
+    p.drawString(5 * mm, y, "4. Keep this document for records")
+    y -= 5 * mm
+    
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Signature section
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, "Stock Personnel:")
+    y -= 5 * mm
+    p.drawString(5 * mm, y, "Name: _____________________")
+    y -= 4 * mm
+    p.drawString(5 * mm, y, "Signature: ________________")
+    y -= 4 * mm
+    p.drawString(5 * mm, y, "Date: _____________________")
+    y -= 6 * mm
+    
+    # Footer
+    p.setFont("Courier", 6)
+    p.drawCentredString(width / 2, y, "This is an official stock release document")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, sale.receipt_number)
+    
+    # Save PDF
+    p.showPage()
+    p.save()
+    
+    # Get PDF from buffer
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Create response
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="stock_auth_{sale.receipt_number}.pdf"'
+    
+    return response
+
+
+@login_required(login_url='login')
+def garage_invoices(request):
+    if request.user.role != 'staff':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('login')
+    
+    from garage.models import GarageInvoice
+    from django.db.models import Sum
+    
+    today = datetime.now().date()
+    current_month_start = today.replace(day=1)
+    
+    # Monthly invoices
+    month_invoices = GarageInvoice.objects.filter(
+        created_at__date__gte=current_month_start
+    ).select_related('vehicle', 'created_by').order_by('-created_at')
+    
+    # Monthly statistics
+    month_count = month_invoices.count()
+    month_labor = month_invoices.aggregate(total=Sum('labor_charge'))['total'] or 0
+    
+    context = {
+        'user': request.user,
+        'invoices': month_invoices,
+        'month_count': month_count,
+        'month_labor': month_labor,
+        'current_month': current_month_start.strftime('%B %Y'),
+    }
+    
+    return render(request, 'staff_garage_invoices.html', context)
+
+
+@login_required(login_url='login')
+def debt_bill_receipt(request, sale_id):
+    """Generate thermal printer style debt bill/statement"""
+    if request.user.role not in ['staff', 'manager']:
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('login')
+    
+    from django.shortcuts import get_object_or_404
+    from django.http import HttpResponse
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from io import BytesIO
+    from stock.models import Sale, PaymentHistory
+    
+    sale = get_object_or_404(Sale.objects.select_related('customer', 'created_by'), id=sale_id)
+    
+    # Only for debt sales
+    if sale.sale_type != 'debt':
+        return HttpResponse('This is not a debt sale', status=400)
+    
+    # Create PDF buffer
+    buffer = BytesIO()
+    
+    # Create PDF with 80mm width (thermal printer size)
+    width = 80 * mm
+    height = 297 * mm
+    
+    # Create canvas
+    p = canvas.Canvas(buffer, pagesize=(width, height))
+    
+    # Starting Y position
+    y = height - 10 * mm
+    
+    # Header
+    p.setFont("Courier-Bold", 10)
+    p.drawCentredString(width / 2, y, "GDENCE AUTOSPARE PARTS")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawCentredString(width / 2, y, "DEBT STATEMENT")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, "Tel: +255 787 450 854")
+    y -= 5 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Receipt info
+    p.setFont("Courier-Bold", 8)
+    p.drawString(5 * mm, y, f"Receipt #: {sale.receipt_number}")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, f"Date: {sale.created_at.strftime('%d/%m/%Y %H:%M')}")
+    y -= 3 * mm
+    
+    if sale.due_date:
+        p.setFont("Courier-Bold", 7)
+        p.drawString(5 * mm, y, f"Due Date: {sale.due_date.strftime('%d/%m/%Y')}")
+        y -= 4 * mm
+    
+    # Customer info
+    p.setFont("Courier-Bold", 8)
+    p.drawString(5 * mm, y, "CUSTOMER INFORMATION")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    if sale.customer:
+        p.drawString(5 * mm, y, f"Name: {sale.customer.name}")
+        y -= 3 * mm
+        if sale.customer.mobile_number:
+            p.drawString(5 * mm, y, f"Phone: {sale.customer.mobile_number}")
+            y -= 3 * mm
+    else:
+        p.drawString(5 * mm, y, "Walk-in Customer")
+        y -= 3 * mm
+    
+    y -= 2 * mm
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    # Items header
+    p.setFont("Courier-Bold", 7)
+    p.drawString(5 * mm, y, "ITEMS PURCHASED")
+    y -= 4 * mm
+    
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 4 * mm
+    
+    # Items
+    p.setFont("Courier", 7)
+    for item in sale.items.all():
+        # Item name
+        p.setFont("Courier-Bold", 7)
+        p.drawString(5 * mm, y, item.item_name[:28])
+        y -= 3 * mm
+        
+        # Quantity and price
+        p.setFont("Courier", 6)
+        qty_price = f"{item.quantity} x TSh {item.unit_price:,.0f}"
+        total = f"TSh {item.total_price:,.0f}"
+        p.drawString(7 * mm, y, qty_price)
+        p.drawRightString(width - 5 * mm, y, total)
+        y -= 4 * mm
+    
+    # Dashed line
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 4 * mm
+    
+    # Totals
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, "Subtotal:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {sale.subtotal:,.0f}")
+    y -= 3 * mm
+    
+    if sale.discount > 0:
+        p.drawString(5 * mm, y, "Discount:")
+        p.drawRightString(width - 5 * mm, y, f"- TSh {sale.discount:,.0f}")
+        y -= 3 * mm
+    
+    # Grand total
+    p.setFont("Courier-Bold", 9)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 4 * mm
+    p.drawString(5 * mm, y, "TOTAL AMOUNT:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {sale.total_amount:,.0f}")
+    y -= 5 * mm
+    
+    # Double line
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 1 * mm
+    p.line(5 * mm, y, width - 5 * mm, y)
+    y -= 5 * mm
+    
+    # Payment summary
+    p.setFont("Courier-Bold", 8)
+    p.drawString(5 * mm, y, "PAYMENT SUMMARY")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawString(5 * mm, y, f"Amount Paid:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {sale.paid_amount:,.0f}")
+    y -= 3 * mm
+    
+    p.setFont("Courier-Bold", 8)
+    remaining = sale.total_amount - sale.paid_amount
+    p.drawString(5 * mm, y, f"BALANCE DUE:")
+    p.drawRightString(width - 5 * mm, y, f"TSh {remaining:,.0f}")
+    y -= 5 * mm
+    
+    # Payment history
+    payments = PaymentHistory.objects.filter(sale=sale).order_by('payment_date')
+    if payments.exists():
+        p.setDash(1, 2)
+        p.line(5 * mm, y, width - 5 * mm, y)
+        p.setDash()
+        y -= 4 * mm
+        
+        p.setFont("Courier-Bold", 7)
+        p.drawString(5 * mm, y, "PAYMENT HISTORY")
+        y -= 4 * mm
+        
+        p.setFont("Courier", 6)
+        for payment in payments:
+            date_str = payment.payment_date.strftime('%d/%m/%Y')
+            amount_str = f"TSh {payment.amount:,.0f}"
+            p.drawString(5 * mm, y, date_str)
+            p.drawRightString(width - 5 * mm, y, amount_str)
+            y -= 3 * mm
+        
+        y -= 2 * mm
+    
+    # Footer
+    p.setDash(1, 2)
+    p.line(5 * mm, y, width - 5 * mm, y)
+    p.setDash()
+    y -= 5 * mm
+    
+    p.setFont("Courier", 7)
+    p.drawCentredString(width / 2, y, "Please settle your balance")
+    y -= 3 * mm
+    p.drawCentredString(width / 2, y, "Thank you for your business!")
+    y -= 4 * mm
+    
+    p.setFont("Courier", 6)
+    p.drawCentredString(width / 2, y, sale.receipt_number)
+    
+    # Save PDF
+    p.showPage()
+    p.save()
+    
+    # Get PDF from buffer
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Create response
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="debt_bill_{sale.receipt_number}.pdf"'
+    
+    return response

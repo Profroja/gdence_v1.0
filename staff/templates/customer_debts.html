@@ -85,6 +85,10 @@
                             style="padding: 6px 12px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
                         <i class="fas fa-eye"></i> View
                     </button>
+                    <button onclick="downloadDebtBill({{ debt.id }})" 
+                            style="padding: 6px 12px; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                        <i class="fas fa-file-pdf"></i> Bill
+                    </button>
                     <button onclick="openPaymentModal({{ debt.id }}, '{{ debt.receipt_number }}', '{{ debt.customer.name|default:"Walk-in" }}', {{ debt.total_amount }}, {{ debt.paid_amount }}, {{ debt.remaining_debt }})" 
                             style="padding: 6px 12px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer;">
                         <i class="fas fa-money-bill-wave"></i> Pay
@@ -115,6 +119,7 @@
                 <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Customer</th>
                 <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Total Amount</th>
                 <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Status</th>
+                <th style="padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid var(--border-color);">Action</th>
             </tr>
         </thead>
         <tbody>
@@ -126,10 +131,16 @@
                 <td style="padding: 12px;">{{ debt.customer.name|default:"Walk-in" }}</td>
                 <td style="padding: 12px;">TSh {{ debt.total_amount|floatformat:0|intcomma }}</td>
                 <td style="padding: 12px;"><span style="background: #D1FAE5; color: #065F46; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700;">PAID</span></td>
+                <td style="padding: 12px;">
+                    <button onclick="downloadDebtBill({{ debt.id }})" 
+                            style="padding: 6px 12px; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        <i class="fas fa-file-pdf"></i> Bill
+                    </button>
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-gray);">No completed debts</td>
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-gray);">No completed debts</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -505,6 +516,11 @@ function viewDebtDetails(debtId) {
 
 function closeDebtDetailsModal() {
     document.getElementById('debtDetailsModal').style.display = 'none';
+}
+
+// Download debt bill receipt
+function downloadDebtBill(debtId) {
+    window.location.href = `/staff/debt-bill-receipt/${debtId}/`;
 }
 
 // Close debt details modal when clicking outside

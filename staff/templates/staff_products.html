@@ -160,7 +160,7 @@
                 <th>Type</th>
                 <th>Part Number</th>
                 <th>Name</th>
-                <th>Price</th>
+                <th>Selling Price</th>
                 <th>Initial Qty</th>
                 <th>Sold</th>
                 <th>Added Stock</th>
@@ -176,7 +176,7 @@
                 <td><span class="badge badge-info">New</span></td>
                 <td>{{ part.part_number|default:"-" }}</td>
                 <td>{{ part.name }}</td>
-                <td>TSh {{ part.unit_price|floatformat:0|intcomma }}</td>
+                <td>TSh {{ part.selling_price|floatformat:0|intcomma }}</td>
                 <td>{{ part.initial_quantity }}</td>
                 <td>{{ part.sold_quantity }}</td>
                 <td>{{ part.added_stock }}</td>
@@ -201,7 +201,7 @@
                 <td><span class="badge badge-secondary">Used</span></td>
                 <td>{{ part.part_number|default:"-" }}</td>
                 <td>{{ part.name }}</td>
-                <td>TSh {{ part.whole_price|floatformat:0|intcomma }}</td>
+                <td>TSh {{ part.whole_selling_price|floatformat:0|intcomma }}</td>
                 <td>{{ part.initial_quantity }}</td>
                 <td>{{ part.sold_quantity }}</td>
                 <td>{{ part.added_stock }}</td>
@@ -248,7 +248,7 @@
                 <thead>
                     <tr>
                         <th>Component Name</th>
-                        <th>Unit Price</th>
+                        <th>Selling Price</th>
                         <th>Initial Qty</th>
                         <th>Sold</th>
                         <th>Current Qty</th>
@@ -380,7 +380,7 @@ function viewComponents(usedPartId, partName) {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${comp.name}</td>
-                        <td>TSh ${parseFloat(comp.unit_price).toLocaleString()}</td>
+                        <td>TSh ${parseFloat(comp.selling_price).toLocaleString()}</td>
                         <td>${comp.initial_quantity}</td>
                         <td>${comp.sold_quantity}</td>
                         <td>${comp.current_quantity}</td>

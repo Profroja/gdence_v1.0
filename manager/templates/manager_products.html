@@ -1,3 +1,4 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -623,7 +624,8 @@
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Type</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Part Number</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Name</th>
-              <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Price (TZS)</th>
+              <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Buying Price</th>
+              <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Selling Price</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Initial Qty</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Sold</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Added Stock</th>
@@ -641,7 +643,8 @@
               </td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.part_number|default:"-" }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">{{ part.name }}</td>
-              <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">{{ part.unit_price|floatformat:0 }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text);">TSh {{ part.buying_price|floatformat:0|intcomma }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">TSh {{ part.selling_price|floatformat:0|intcomma }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.initial_quantity }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.sold_quantity }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.added_stock }}</td>
@@ -668,7 +671,8 @@
               </td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.part_number|default:"-" }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">{{ part.name }}</td>
-              <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">{{ part.whole_price|floatformat:0 }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text);">TSh {{ part.whole_buying_price|floatformat:0|intcomma }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">TSh {{ part.whole_selling_price|floatformat:0|intcomma }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.initial_quantity }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.sold_quantity }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ part.added_stock }}</td>
@@ -723,7 +727,8 @@
             <thead>
               <tr style="border-bottom: 2px solid var(--border);">
                 <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Component Name</th>
-                <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Unit Price</th>
+                <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Buying Price</th>
+                <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Selling Price</th>
                 <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Initial Qty</th>
                 <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Sold</th>
                 <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Current Qty</th>
@@ -793,7 +798,8 @@
             
             row.innerHTML = `
               <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">${component.name}</td>
-              <td style="padding: 12px; font-size: 13px; color: var(--text);">${parseFloat(component.unit_price).toLocaleString()}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text);">TSh ${parseFloat(component.buying_price).toLocaleString()}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">TSh ${parseFloat(component.selling_price).toLocaleString()}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">${component.initial_quantity}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">${component.sold_quantity}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">${component.current_quantity}</td>
@@ -802,7 +808,7 @@
             tbody.appendChild(row);
           });
         } else {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--muted);">No components found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--muted);">No components found</td></tr>';
         }
       })
       .catch(error => {

@@ -12,12 +12,12 @@ class CategoryAdmin(admin.ModelAdmin):
 class ComponentInline(admin.TabularInline):
     model = Component
     extra = 1
-    fields = ['name', 'description', 'unit_price', 'initial_quantity', 'current_quantity', 'sold_quantity', 'is_active']
+    fields = ['name', 'description', 'buying_price', 'selling_price', 'initial_quantity', 'current_quantity', 'sold_quantity', 'is_active']
 
 
 @admin.register(NewSparePart)
 class NewSparePartAdmin(admin.ModelAdmin):
-    list_display = ['name', 'part_number', 'category', 'unit_price', 'current_quantity', 'sold_quantity', 'stock_status', 'is_active']
+    list_display = ['name', 'part_number', 'category', 'buying_price', 'selling_price', 'current_quantity', 'sold_quantity', 'stock_status', 'is_active']
     list_filter = ['category', 'is_active', 'created_at']
     search_fields = ['name', 'part_number', 'description']
     list_editable = ['is_active']
@@ -27,7 +27,7 @@ class NewSparePartAdmin(admin.ModelAdmin):
             'fields': ('part_number', 'name', 'category', 'description')
         }),
         ('Pricing', {
-            'fields': ('unit_price',)
+            'fields': ('buying_price', 'selling_price')
         }),
         ('Inventory', {
             'fields': ('initial_quantity', 'current_quantity', 'sold_quantity', 'minimum_stock_level')
@@ -48,7 +48,7 @@ class NewSparePartAdmin(admin.ModelAdmin):
 
 @admin.register(UsedSparePart)
 class UsedSparePartAdmin(admin.ModelAdmin):
-    list_display = ['name', 'part_number', 'category', 'condition', 'whole_price', 'current_quantity', 'is_broken_down', 'stock_status', 'is_active']
+    list_display = ['name', 'part_number', 'category', 'condition', 'whole_buying_price', 'whole_selling_price', 'current_quantity', 'is_broken_down', 'stock_status', 'is_active']
     list_filter = ['category', 'condition', 'is_broken_down', 'can_be_broken_down', 'is_active', 'created_at']
     search_fields = ['name', 'part_number', 'description']
     list_editable = ['is_active']
@@ -59,7 +59,7 @@ class UsedSparePartAdmin(admin.ModelAdmin):
             'fields': ('part_number', 'name', 'category', 'description', 'condition')
         }),
         ('Pricing', {
-            'fields': ('whole_price',)
+            'fields': ('whole_buying_price', 'whole_selling_price')
         }),
         ('Inventory', {
             'fields': ('initial_quantity', 'current_quantity', 'sold_quantity')
@@ -81,7 +81,7 @@ class UsedSparePartAdmin(admin.ModelAdmin):
 
 @admin.register(Component)
 class ComponentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'used_spare_part', 'unit_price', 'current_quantity', 'sold_quantity', 'stock_status', 'is_active']
+    list_display = ['name', 'used_spare_part', 'buying_price', 'selling_price', 'current_quantity', 'sold_quantity', 'stock_status', 'is_active']
     list_filter = ['used_spare_part', 'is_active', 'created_at']
     search_fields = ['name', 'description', 'used_spare_part__name']
     list_editable = ['is_active']
@@ -91,7 +91,7 @@ class ComponentAdmin(admin.ModelAdmin):
             'fields': ('used_spare_part', 'name', 'description')
         }),
         ('Pricing', {
-            'fields': ('unit_price',)
+            'fields': ('buying_price', 'selling_price')
         }),
         ('Inventory', {
             'fields': ('initial_quantity', 'current_quantity', 'sold_quantity')

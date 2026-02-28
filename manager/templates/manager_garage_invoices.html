@@ -1,0 +1,208 @@
+{% extends 'manager_dashboard.html' %}
+{% load humanize %}
+
+{% block title %}Garage Services - Manager{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Page header -->
+<div class="page-hd">
+  <div>
+    <h1>🔧 Garage Services</h1>
+    <p>{{ current_month }} - View all garage service invoices</p>
+  </div>
+</div>
+
+<!-- MONTHLY STATISTICS -->
+<div class="stats" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
+  <div class="stat">
+    <div class="stat-top">
+      <span class="stat-label">Services Created This Month</span>
+      <div class="stat-icon si-b">🔧</div>
+    </div>
+    <div class="stat-val">{{ month_count }}</div>
+    <div class="stat-sub"><span class="grey">Total invoices</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" style="width:{% widthratio month_count 50 100 %}%;background:var(--blue)"></div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-top">
+      <span class="stat-label">Labor Charges</span>
+      <div class="stat-icon si-g">💵</div>
+    </div>
+    <div class="stat-val">TSh {{ month_labor|floatformat:0|intcomma }}</div>
+    <div class="stat-sub"><span class="grey">Service charges this month</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" style="width:75%;background:var(--green)"></div></div>
+  </div>
+</div>
+
+<!-- INVOICES TABLE -->
+<div class="card">
+  <div class="card-hd">
+    <h3 class="card-title">All Invoices - {{ current_month }}</h3>
+  </div>
+  
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Invoice #</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Vehicle</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Plate Number</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Labor Charge</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Parts Total</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Total Amount</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Status</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Payment</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Created By</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Date</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if invoices %}
+          {% for invoice in invoices %}
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 12px 8px; font-size: 13px; font-weight: 600; color: var(--blue);">
+              {{ invoice.invoice_number }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              {{ invoice.vehicle.vehicle_model }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              {{ invoice.vehicle.plate_number }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              TSh {{ invoice.labor_charge|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              TSh {{ invoice.parts_total|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; font-weight: 600; color: var(--text);">
+              TSh {{ invoice.total_amount|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px;">
+              {% if invoice.status == 'pending' %}
+                <span style="background: #fffbeb; color: var(--yellow); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Pending</span>
+              {% elif invoice.status == 'in_progress' %}
+                <span style="background: #eff6ff; color: var(--blue); padding: 4px 10px; border-radius: 12px; font-weight: 600;">In Progress</span>
+              {% elif invoice.status == 'completed' %}
+                <span style="background: #f0fdf4; color: var(--green); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Completed</span>
+              {% elif invoice.status == 'paid' %}
+                <span style="background: #faf5ff; color: var(--purple); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Paid</span>
+              {% endif %}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px;">
+              {% if invoice.status == 'paid' %}
+                <span style="background: #f0fdf4; color: var(--green); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Paid</span>
+              {% else %}
+                <span style="background: #fef2f2; color: var(--red); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Not Paid</span>
+              {% endif %}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px; color: var(--text2);">
+              {{ invoice.created_by.get_full_name|default:invoice.created_by.username }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px; color: var(--muted);">
+              {{ invoice.created_at|date:"d M Y" }}
+            </td>
+            <td style="padding: 12px 8px;">
+              <div style="display: flex; gap: 6px;">
+                <button onclick="viewInvoice({{ invoice.id }})" style="padding: 5px 10px; border: 1px solid var(--border); background: var(--white); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--blue);" title="View Details">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="downloadInvoice({{ invoice.id }})" style="padding: 5px 10px; border: 1px solid var(--border); background: var(--white); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--green);" title="Download Invoice">
+                  <i class="fas fa-download"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="11" style="padding: 40px; text-align: center; color: var(--muted); font-size: 14px;">
+              <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 12px; display: block; opacity: 0.3;"></i>
+              No invoices found for {{ current_month }}
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// View invoice details
+async function viewInvoice(id) {
+  try {
+    const response = await fetch(`/garage/invoice-details/${id}/`);
+    const data = await response.json();
+    
+    if (data.success) {
+      const invoice = data.invoice;
+      let itemsHtml = '<table style="width: 100%; font-size: 12px; margin-top: 10px; border-collapse: collapse;">';
+      itemsHtml += '<thead><tr style="border-bottom: 1px solid #e2e8f0; text-align: left;">';
+      itemsHtml += '<th style="padding: 8px;">Item</th><th style="padding: 8px; text-align: right;">Qty</th>';
+      itemsHtml += '<th style="padding: 8px; text-align: right;">Price</th><th style="padding: 8px; text-align: right;">Total</th></tr></thead><tbody>';
+      
+      invoice.items.forEach(item => {
+        itemsHtml += `<tr style="border-bottom: 1px solid #e2e8f0;">`;
+        itemsHtml += `<td style="padding: 8px;">${item.name}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">${item.quantity}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">TSh ${item.unit_price.toLocaleString()}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">TSh ${item.total_price.toLocaleString()}</td></tr>`;
+      });
+      itemsHtml += '</tbody></table>';
+      
+      Swal.fire({
+        title: `Invoice: ${invoice.invoice_number}`,
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Vehicle:</strong> ${invoice.vehicle_model} (${invoice.plate_number})</p>
+            <p><strong>Owner:</strong> ${invoice.owner_name || 'N/A'}</p>
+            <p><strong>Service:</strong> ${invoice.repair_description}</p>
+            <p><strong>Status:</strong> <span style="color: #10b981;">${invoice.status}</span></p>
+            <hr style="margin: 15px 0;">
+            <h4>Parts Used:</h4>
+            ${itemsHtml}
+            <hr style="margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+              <span>Parts Total:</span><strong>TSh ${invoice.parts_total.toLocaleString()}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+              <span>Labor Charges:</span><strong>TSh ${invoice.labor_charge.toLocaleString()}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding-top: 10px; border-top: 2px solid #3b82f6;">
+              <span style="font-size: 16px;"><strong>Total Amount:</strong></span>
+              <strong style="font-size: 16px; color: #3b82f6;">TSh ${invoice.total_amount.toLocaleString()}</strong>
+            </div>
+          </div>
+        `,
+        width: 600,
+        confirmButtonColor: '#3b82f6'
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: data.message,
+        confirmButtonColor: '#ef4444'
+      });
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Failed to load invoice details',
+      confirmButtonColor: '#ef4444'
+    });
+  }
+}
+
+// Download invoice as thermal receipt
+function downloadInvoice(id) {
+  window.open(`/garage/download-invoice/${id}/`, '_blank');
+}
+</script>
+{% endblock %}

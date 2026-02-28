@@ -83,15 +83,15 @@ def dashboard(request):
     
     # Calculate total inventory value
     new_parts_value = NewSparePart.objects.filter(is_active=True).aggregate(
-        total=Sum(F('current_quantity') * F('unit_price'), output_field=DecimalField())
+        total=Sum(F('current_quantity') * F('selling_price'), output_field=DecimalField())
     )['total'] or Decimal('0.00')
     
     used_parts_value = UsedSparePart.objects.filter(is_active=True).aggregate(
-        total=Sum(F('current_quantity') * F('whole_price'), output_field=DecimalField())
+        total=Sum(F('current_quantity') * F('whole_selling_price'), output_field=DecimalField())
     )['total'] or Decimal('0.00')
     
     components_value = Component.objects.filter(is_active=True).aggregate(
-        total=Sum(F('current_quantity') * F('unit_price'), output_field=DecimalField())
+        total=Sum(F('current_quantity') * F('selling_price'), output_field=DecimalField())
     )['total'] or Decimal('0.00')
     
     total_inventory_value = new_parts_value + used_parts_value + components_value
@@ -126,15 +126,21 @@ def dashboard(request):
 @login_required(login_url='login')
 def staff_list(request):
     if request.user.role != 'manager':
-        messages.error(request, 'Huna ruhusa ya kufikia ukurasa huu')
+        messages.error(request, 'You do not have permission to access this page')
         return redirect('login')
     
-    # Get all staff and stock users
-    staff_users = User.objects.filter(role__in=['staff', 'stock']).order_by('-date_joined')
+    # Get all staff, stock, and garage users
+    staff_users = User.objects.filter(role__in=['staff', 'stock', 'garage']).order_by('-date_joined')
+    
+    # Count active and inactive staff
+    active_staff_count = staff_users.filter(is_active=True).count()
+    inactive_staff_count = staff_users.filter(is_active=False).count()
     
     context = {
         'user': request.user,
         'staff_users': staff_users,
+        'active_staff_count': active_staff_count,
+        'inactive_staff_count': inactive_staff_count,
         'active_page': 'staff'
     }
     
@@ -143,10 +149,12 @@ def staff_list(request):
 @login_required(login_url='login')
 def staff_create(request):
     if request.user.role != 'manager':
-        messages.error(request, 'Huna ruhusa ya kufikia ukurasa huu')
+        messages.error(request, 'You do not have permission to access this page')
         return redirect('login')
     
     if request.method == 'POST':
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -154,23 +162,23 @@ def staff_create(request):
         mobile_number = request.POST.get('mobile_number')
         
         # Validation
-        if not all([username, password, role]):
+        if not all([first_name, last_name, username, password, role]):
             return JsonResponse({
                 'success': False,
-                'message': 'Tafadhali jaza sehemu zote muhimu'
+                'message': 'Please fill all required fields'
             })
         
-        if role not in ['staff', 'stock']:
+        if role not in ['staff', 'stock', 'garage']:
             return JsonResponse({
                 'success': False,
-                'message': 'Chaguo la jukumu si sahihi'
+                'message': 'Invalid role selection'
             })
         
         # Check if username exists
         if User.objects.filter(username=username).exists():
             return JsonResponse({
                 'success': False,
-                'message': 'Jina la mtumiaji tayari lipo'
+                'message': 'Username already exists'
             })
         
         # Create user
@@ -180,16 +188,18 @@ def staff_create(request):
                 email=email,
                 password=password,
                 role=role,
-                mobile_number=mobile_number
+                mobile_number=mobile_number,
+                first_name=first_name,
+                last_name=last_name
             )
             return JsonResponse({
                 'success': True,
-                'message': f'Mfanyakazi {username} ameongezwa kikamilifu'
+                'message': f'Staff member {username} added successfully'
             })
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'message': f'Kosa limetokea: {str(e)}'
+                'message': f'Error occurred: {str(e)}'
             })
     
     context = {
@@ -201,17 +211,19 @@ def staff_create(request):
 @login_required(login_url='login')
 def staff_edit(request, user_id):
     if request.user.role != 'manager':
-        messages.error(request, 'Huna ruhusa ya kufikia ukurasa huu')
+        messages.error(request, 'You do not have permission to access this page')
         return redirect('login')
     
     staff_user = get_object_or_404(User, id=user_id)
     
     # Prevent editing manager accounts
     if staff_user.role == 'manager':
-        messages.error(request, 'Huwezi kuhariri akaunti ya meneja')
+        messages.error(request, 'You cannot edit manager accounts')
         return redirect('manager:staff_list')
     
     if request.method == 'POST':
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
         username = request.POST.get('username')
         email = request.POST.get('email')
         role = request.POST.get('role')
@@ -219,27 +231,29 @@ def staff_edit(request, user_id):
         password = request.POST.get('password')
         
         # Validation
-        if not all([username, role]):
+        if not all([first_name, last_name, username, role]):
             return JsonResponse({
                 'success': False,
-                'message': 'Tafadhali jaza sehemu zote muhimu'
+                'message': 'Please fill all required fields'
             })
         
-        if role not in ['staff', 'stock']:
+        if role not in ['staff', 'stock', 'garage']:
             return JsonResponse({
                 'success': False,
-                'message': 'Chaguo la jukumu si sahihi'
+                'message': 'Invalid role selection'
             })
         
         # Check if username exists (excluding current user)
         if User.objects.filter(username=username).exclude(id=user_id).exists():
             return JsonResponse({
                 'success': False,
-                'message': 'Jina la mtumiaji tayari lipo'
+                'message': 'Username already exists'
             })
         
         # Update user
         try:
+            staff_user.first_name = first_name
+            staff_user.last_name = last_name
             staff_user.username = username
             staff_user.email = email
             staff_user.role = role
@@ -252,12 +266,12 @@ def staff_edit(request, user_id):
             staff_user.save()
             return JsonResponse({
                 'success': True,
-                'message': f'Taarifa za {username} zimesasishwa kikamilifu'
+                'message': f'{username} updated successfully'
             })
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'message': f'Kosa limetokea: {str(e)}'
+                'message': f'Error occurred: {str(e)}'
             })
     
     context = {
@@ -271,22 +285,22 @@ def staff_edit(request, user_id):
 @login_required(login_url='login')
 def staff_toggle_active(request, user_id):
     if request.user.role != 'manager':
-        messages.error(request, 'Huna ruhusa ya kufikia ukurasa huu')
+        messages.error(request, 'You do not have permission to access this page')
         return redirect('login')
     
     staff_user = get_object_or_404(User, id=user_id)
     
     # Prevent disabling manager accounts
     if staff_user.role == 'manager':
-        messages.error(request, 'Huwezi kuzima akaunti ya meneja')
+        messages.error(request, 'You cannot disable manager accounts')
         return redirect('manager:staff_list')
     
     # Toggle active status
     staff_user.is_active = not staff_user.is_active
     staff_user.save()
     
-    status = 'amewashwa' if staff_user.is_active else 'amezimwa'
-    messages.success(request, f'Akaunti ya {staff_user.username} {status} kikamilifu')
+    status = 'activated' if staff_user.is_active else 'deactivated'
+    messages.success(request, f'{staff_user.username} has been {status} successfully')
     
     return redirect('manager:staff_list')
 
@@ -481,28 +495,31 @@ def customer_debts(request):
     current_year = now.year
     current_month = now.month
     current_month_name = now.strftime('%B %Y')
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all debt sales
+    all_debts = Sale.objects.filter(sale_type='debt').select_related('customer')
     
     # Get active debts (unpaid)
-    active_debts = Sale.objects.filter(
-        sale_type='debt',
-        is_paid=False
-    ).order_by('-created_at')
+    active_debts = all_debts.filter(is_paid=False).order_by('-created_at')
     
     # Get completed debts (paid)
-    completed_debts = Sale.objects.filter(
-        sale_type='debt',
-        is_paid=True
-    ).order_by('-updated_at')[:50]  # Last 50 paid debts
+    completed_debts = all_debts.filter(is_paid=True).order_by('-created_at')[:50]  # Last 50 paid debts
     
     # Calculate statistics
     active_debts_count = active_debts.count()
-    total_debt_amount = sum(debt.total_amount - debt.paid_amount for debt in active_debts)
     
-    # Calculate payments received this month
-    payments_this_month = PaymentHistory.objects.filter(
-        payment_date__year=current_year,
-        payment_date__month=current_month
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # Calculate total outstanding debt amount (sum of remaining balances)
+    total_debt_amount = Decimal('0.00')
+    for debt in active_debts:
+        total_debt_amount += (debt.total_amount - debt.paid_amount)
+    
+    # Calculate payments received this month (from any debt, even old ones)
+    # This tracks payments made in the current month
+    payments_this_month = all_debts.filter(
+        updated_at__gte=month_start,
+        paid_amount__gt=0
+    ).aggregate(total=Sum('paid_amount'))['total'] or Decimal('0.00')
     
     context = {
         'user': request.user,
@@ -569,13 +586,20 @@ def expenditure(request):
         diagnosis_date__month=selected_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
+    # Garage labor charges
+    from garage.models import GarageInvoice
+    garage_labor_revenue = GarageInvoice.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    ).aggregate(total=Sum('labor_charge'))['total'] or Decimal('0.00')
+    
     # Opening balance
     month_date = date(selected_year, selected_month, 1)
     opening_balance_obj = OpeningBalance.objects.filter(month=month_date).first()
     opening_balance = opening_balance_obj.amount if opening_balance_obj else Decimal('0.00')
     
     # Total revenue
-    total_revenue = regular_sales_revenue + debt_payments_received + car_diagnosing_revenue + opening_balance
+    total_revenue = regular_sales_revenue + debt_payments_received + car_diagnosing_revenue + garage_labor_revenue + opening_balance
     
     # Remaining amount
     remaining_amount = total_revenue - total_expenditure
@@ -587,6 +611,7 @@ def expenditure(request):
         'total_expenditure': total_expenditure,
         'expenditure_count': expenditure_count,
         'remaining_amount': remaining_amount,
+        'garage_labor_revenue': garage_labor_revenue,
         'current_month': current_month,
         'selected_year': selected_year,
         'selected_month': selected_month,
@@ -703,6 +728,15 @@ def funga_hesabu(request):
     car_diagnosing_count = car_diagnosing.count()
     car_diagnosing_amount = car_diagnosing.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
+    # Garage Labor Revenue
+    from garage.models import GarageInvoice
+    garage_labor = GarageInvoice.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    )
+    garage_labor_count = garage_labor.count()
+    garage_labor_amount = garage_labor.aggregate(total=Sum('labor_charge'))['total'] or Decimal('0.00')
+    
     # Expenditure
     expenditures = Expenditure.objects.filter(
         date__year=selected_year,
@@ -712,7 +746,7 @@ def funga_hesabu(request):
     expenditure_amount = expenditures.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
     # Total Revenue
-    total_revenue = regular_sales_amount + debt_payments_amount + car_diagnosing_amount + opening_balance
+    total_revenue = regular_sales_amount + debt_payments_amount + car_diagnosing_amount + garage_labor_amount + opening_balance
     
     # Total Sales
     total_sales_amount = regular_sales_amount + debt_sales_amount
@@ -744,6 +778,8 @@ def funga_hesabu(request):
         'outstanding_debts_amount': outstanding_debts_amount,
         'car_diagnosing_count': car_diagnosing_count,
         'car_diagnosing_amount': car_diagnosing_amount,
+        'garage_labor_count': garage_labor_count,
+        'garage_labor_amount': garage_labor_amount,
         'expenditure_count': expenditure_count,
         'expenditure_amount': expenditure_amount,
         'is_manager': True,
@@ -819,3 +855,267 @@ def debt_details(request, sale_id):
         return JsonResponse({'success': False, 'message': 'Debt sale not found'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'}, status=500)
+
+
+@login_required(login_url='login')
+def garage_invoices(request):
+    if request.user.role != 'manager':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('login')
+    
+    from garage.models import GarageInvoice
+    from django.db.models import Sum
+    
+    today = datetime.now().date()
+    current_month_start = today.replace(day=1)
+    
+    # Monthly invoices
+    month_invoices = GarageInvoice.objects.filter(
+        created_at__date__gte=current_month_start
+    ).select_related('vehicle', 'created_by').order_by('-created_at')
+    
+    # Monthly statistics
+    month_count = month_invoices.count()
+    month_labor = month_invoices.aggregate(total=Sum('labor_charge'))['total'] or 0
+    
+    context = {
+        'user': request.user,
+        'invoices': month_invoices,
+        'month_count': month_count,
+        'month_labor': month_labor,
+        'current_month': current_month_start.strftime('%B %Y'),
+    }
+    
+    return render(request, 'manager_garage_invoices.html', context)
+
+
+@login_required(login_url='login')
+def reports(request):
+    """Manager comprehensive reports page with month/year filtering"""
+    if request.user.role != 'manager':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('login')
+    
+    from stock.models import Sale, NewSparePart, UsedSparePart, Component, Expenditure, PaymentHistory
+    from staff.models import CarDiagnosis
+    from garage.models import GarageInvoice
+    from django.db.models import Sum, Count, Q, F, DecimalField
+    from django.utils import timezone
+    from decimal import Decimal
+    import calendar
+    
+    # Get selected month and year from request
+    now = timezone.now()
+    selected_month = int(request.GET.get('month', now.month))
+    selected_year = int(request.GET.get('year', now.year))
+    
+    # Create month name
+    month_name = calendar.month_name[selected_month]
+    selected_period = f"{month_name} {selected_year}"
+    
+    # Get all sales for the selected month
+    all_sales = Sale.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    )
+    
+    # ===== SALES METRICS =====
+    total_sales_count = all_sales.count()
+    total_sales_amount = all_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    # Regular vs Debt sales
+    regular_sales = all_sales.filter(sale_type='regular')
+    debt_sales = all_sales.filter(sale_type='debt')
+    
+    regular_sales_count = regular_sales.count()
+    regular_sales_amount = regular_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    debt_sales_count = debt_sales.count()
+    debt_sales_amount = debt_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    # Cash vs M-Pesa
+    cash_sales = all_sales.filter(payment_type='cash')
+    mpesa_sales = all_sales.filter(payment_type='mpesa')
+    
+    cash_sales_count = cash_sales.count()
+    cash_sales_amount = cash_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    mpesa_sales_count = mpesa_sales.count()
+    mpesa_sales_amount = mpesa_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    # ===== DEBT METRICS =====
+    # Active debts (unpaid)
+    active_debts = Sale.objects.filter(sale_type='debt', is_paid=False)
+    active_debts_count = active_debts.count()
+    total_debt_outstanding = Decimal('0.00')
+    for debt in active_debts:
+        total_debt_outstanding += (debt.total_amount - debt.paid_amount)
+    
+    # Debt payments received this month
+    debt_payments_this_month = all_sales.filter(
+        updated_at__year=selected_year,
+        updated_at__month=selected_month,
+        paid_amount__gt=0
+    ).aggregate(total=Sum('paid_amount'))['total'] or Decimal('0.00')
+    
+    # Debts created this month
+    debts_created_count = debt_sales_count
+    debts_created_amount = debt_sales_amount
+    
+    # Debts fully paid this month
+    debts_paid_this_month = Sale.objects.filter(
+        sale_type='debt',
+        is_paid=True,
+        updated_at__year=selected_year,
+        updated_at__month=selected_month
+    )
+    debts_paid_count = debts_paid_this_month.count()
+    debts_paid_amount = debts_paid_this_month.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    # ===== PRODUCT METRICS =====
+    # New spare parts
+    new_parts = NewSparePart.objects.filter(is_active=True)
+    new_parts_count = new_parts.count()
+    new_parts_value = new_parts.aggregate(
+        total=Sum(F('current_quantity') * F('selling_price'), output_field=DecimalField())
+    )['total'] or Decimal('0.00')
+    
+    # Low stock new parts
+    low_stock_new = new_parts.filter(current_quantity__lte=F('minimum_stock_level'))
+    low_stock_new_count = low_stock_new.count()
+    
+    # Used spare parts
+    used_parts = UsedSparePart.objects.filter(is_active=True)
+    used_parts_count = used_parts.count()
+    used_parts_value = used_parts.aggregate(
+        total=Sum(F('current_quantity') * F('whole_selling_price'), output_field=DecimalField())
+    )['total'] or Decimal('0.00')
+    
+    # Components
+    components = Component.objects.filter(is_active=True)
+    components_count = components.count()
+    components_value = components.aggregate(
+        total=Sum(F('current_quantity') * F('selling_price'), output_field=DecimalField())
+    )['total'] or Decimal('0.00')
+    
+    # Total inventory value
+    total_inventory_value = new_parts_value + used_parts_value + components_value
+    total_products_count = new_parts_count + used_parts_count + components_count
+    
+    # ===== EXPENDITURE METRICS =====
+    expenditures = Expenditure.objects.filter(
+        date__year=selected_year,
+        date__month=selected_month
+    )
+    expenditure_count = expenditures.count()
+    total_expenditure = expenditures.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # ===== CAR DIAGNOSING METRICS =====
+    car_diagnoses = CarDiagnosis.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    )
+    car_diagnosing_count = car_diagnoses.count()
+    car_diagnosing_revenue = car_diagnoses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # ===== GARAGE METRICS =====
+    garage_invoices = GarageInvoice.objects.filter(
+        created_at__year=selected_year,
+        created_at__month=selected_month
+    )
+    garage_invoices_count = garage_invoices.count()
+    garage_labor_revenue = garage_invoices.aggregate(total=Sum('labor_charge'))['total'] or Decimal('0.00')
+    garage_parts_revenue = garage_invoices.aggregate(total=Sum('parts_total'))['total'] or Decimal('0.00')
+    garage_total_revenue = garage_invoices.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    
+    # Garage by status
+    garage_pending = garage_invoices.filter(status='pending').count()
+    garage_in_progress = garage_invoices.filter(status='in_progress').count()
+    garage_completed = garage_invoices.filter(status='completed').count()
+    garage_paid = garage_invoices.filter(status='paid').count()
+    
+    # ===== REVENUE SUMMARY =====
+    total_revenue = (
+        regular_sales_amount + 
+        debt_payments_this_month + 
+        car_diagnosing_revenue + 
+        garage_labor_revenue
+    )
+    
+    net_profit = total_revenue - total_expenditure
+    profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+    
+    # ===== MONTH/YEAR OPTIONS =====
+    current_year = now.year
+    years = list(range(current_year - 2, current_year + 1))
+    months = [
+        {'value': i, 'name': calendar.month_name[i]} 
+        for i in range(1, 13)
+    ]
+    
+    context = {
+        'user': request.user,
+        'active_page': 'reports',
+        'selected_month': selected_month,
+        'selected_year': selected_year,
+        'selected_period': selected_period,
+        'years': years,
+        'months': months,
+        
+        # Sales
+        'total_sales_count': total_sales_count,
+        'total_sales_amount': total_sales_amount,
+        'regular_sales_count': regular_sales_count,
+        'regular_sales_amount': regular_sales_amount,
+        'debt_sales_count': debt_sales_count,
+        'debt_sales_amount': debt_sales_amount,
+        'cash_sales_count': cash_sales_count,
+        'cash_sales_amount': cash_sales_amount,
+        'mpesa_sales_count': mpesa_sales_count,
+        'mpesa_sales_amount': mpesa_sales_amount,
+        
+        # Debts
+        'active_debts_count': active_debts_count,
+        'total_debt_outstanding': total_debt_outstanding,
+        'debt_payments_this_month': debt_payments_this_month,
+        'debts_created_count': debts_created_count,
+        'debts_created_amount': debts_created_amount,
+        'debts_paid_count': debts_paid_count,
+        'debts_paid_amount': debts_paid_amount,
+        
+        # Products
+        'new_parts_count': new_parts_count,
+        'new_parts_value': new_parts_value,
+        'low_stock_new_count': low_stock_new_count,
+        'used_parts_count': used_parts_count,
+        'used_parts_value': used_parts_value,
+        'components_count': components_count,
+        'components_value': components_value,
+        'total_inventory_value': total_inventory_value,
+        'total_products_count': total_products_count,
+        
+        # Expenditure
+        'expenditure_count': expenditure_count,
+        'total_expenditure': total_expenditure,
+        
+        # Car Diagnosing
+        'car_diagnosing_count': car_diagnosing_count,
+        'car_diagnosing_revenue': car_diagnosing_revenue,
+        
+        # Garage
+        'garage_invoices_count': garage_invoices_count,
+        'garage_labor_revenue': garage_labor_revenue,
+        'garage_parts_revenue': garage_parts_revenue,
+        'garage_total_revenue': garage_total_revenue,
+        'garage_pending': garage_pending,
+        'garage_in_progress': garage_in_progress,
+        'garage_completed': garage_completed,
+        'garage_paid': garage_paid,
+        
+        # Summary
+        'total_revenue': total_revenue,
+        'net_profit': net_profit,
+        'profit_margin': profit_margin,
+    }
+    
+    return render(request, 'manager_reports.html', context)

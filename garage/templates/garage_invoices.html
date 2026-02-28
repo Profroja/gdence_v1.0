@@ -1,0 +1,594 @@
+{% extends 'garage_dashboard.html' %}
+{% load humanize %}
+
+{% block title %}Monthly Invoices - Garage Service{% endblock %}
+
+{% block content %}
+<!-- Page header -->
+<div class="page-hd">
+  <div>
+    <h1>📋 Monthly Invoices</h1>
+    <p>{{ current_month }} - Manage your garage service invoices</p>
+  </div>
+  <div class="hd-btns">
+    <button class="btn btn-primary" onclick="openNewInvoiceModal()">
+      <i class="fas fa-plus"></i> New Invoice
+    </button>
+  </div>
+</div>
+
+<!-- NEW INVOICE MODAL -->
+<div id="invoiceModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: var(--white); border-radius: 12px; max-width: 800px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <!-- Modal Header -->
+      <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 18px; font-weight: 700; color: var(--text);">
+          <i class="fas fa-file-invoice"></i> Create New Invoice
+        </h2>
+        <button onclick="closeInvoiceModal()" style="background: none; border: none; font-size: 24px; color: var(--muted); cursor: pointer; padding: 0; width: 32px; height: 32px;">&times;</button>
+      </div>
+      
+      <!-- Modal Body -->
+      <div style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+        <form id="invoiceForm">
+          <!-- Receipt Number Section -->
+          <div style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">
+              Spare Parts Receipt Number <span style="color: var(--muted); font-size: 11px; font-weight: 400;">(Optional - for services using parts)</span>
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="receiptNumber" placeholder="Enter receipt number (e.g., RCP-20260228133000)" style="flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;">
+              <button type="button" onclick="fetchReceiptItems()" class="btn btn-primary" style="white-space: nowrap;">
+                <i class="fas fa-search"></i> Fetch Items
+              </button>
+            </div>
+            <div id="receiptStatus" style="margin-top: 8px; font-size: 12px;"></div>
+          </div>
+
+          <!-- Receipt Items Display -->
+          <div id="receiptItemsSection" style="display: none; margin-bottom: 24px; padding: 16px; background: var(--bg); border-radius: 8px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px;">Receipt Items</h4>
+            <div id="receiptItemsList"></div>
+            <div id="receiptPaymentStatus" style="margin-top: 12px; padding: 10px; border-radius: 6px;"></div>
+          </div>
+
+          <!-- Vehicle Information -->
+          <div style="margin-bottom: 24px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+              <i class="fas fa-car"></i> Vehicle Information
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Plate Number *</label>
+                <input type="text" id="plateNumber" placeholder="e.g., T123ABC" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" required>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Vehicle Model *</label>
+                <input type="text" id="vehicleModel" placeholder="e.g., Toyota Corolla 2020" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" required>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Owner Name</label>
+                <input type="text" id="ownerName" placeholder="Owner's full name" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;">
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Owner Phone</label>
+                <input type="text" id="ownerPhone" placeholder="e.g., +255 712 345 678" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Service Description -->
+          <div style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">
+              Service Description (What was fixed) <span style="color: var(--red);">*</span>
+            </label>
+            <textarea id="serviceDescription" rows="4" placeholder="Describe the service performed..." style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; resize: vertical;" required></textarea>
+          </div>
+
+          <!-- Labor Charges & Status -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Labor Charges (TSh) *</label>
+              <input type="number" id="laborCharge" placeholder="0" min="0" step="1000" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" required>
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Status *</label>
+              <select id="invoiceStatus" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" required>
+                <option value="in_progress">Ongoing</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px;">Payment Status *</label>
+              <select id="paymentStatus" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" required>
+                <option value="not_paid">Not Paid</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Total Summary -->
+          <div id="totalSummary" style="display: none; padding: 16px; background: #eff6ff; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 13px; color: var(--text2);">Parts Total:</span>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text);" id="partsTotal">TSh 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 13px; color: var(--text2);">Labor Charges:</span>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text);" id="laborTotal">TSh 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid var(--blue);">
+              <span style="font-size: 15px; font-weight: 700; color: var(--text);">Grand Total:</span>
+              <span style="font-size: 15px; font-weight: 700; color: var(--blue);" id="grandTotal">TSh 0</span>
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" onclick="closeInvoiceModal()" class="btn btn-outline">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button type="button" onclick="saveInvoice()" class="btn btn-primary">
+          <i class="fas fa-save"></i> Create Invoice
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MONTHLY STATISTICS -->
+<div class="stats" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
+  <div class="stat">
+    <div class="stat-top">
+      <span class="stat-label">Services Created This Month</span>
+      <div class="stat-icon si-b">🔧</div>
+    </div>
+    <div class="stat-val">{{ month_count }}</div>
+    <div class="stat-sub"><span class="grey">Total invoices</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" style="width:{% widthratio month_count 50 100 %}%;background:var(--blue)"></div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-top">
+      <span class="stat-label">Labor Charges</span>
+      <div class="stat-icon si-g">�</div>
+    </div>
+    <div class="stat-val">TSh {{ month_labor|floatformat:0|intcomma }}</div>
+    <div class="stat-sub"><span class="grey">Service charges this month</span></div>
+    <div class="mini-bar"><div class="mini-bar-fill" style="width:75%;background:var(--green)"></div></div>
+  </div>
+</div>
+
+<!-- INVOICES TABLE -->
+<div class="card">
+  <div class="card-hd">
+    <h3 class="card-title">All Invoices - {{ current_month }}</h3>
+  </div>
+  
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Invoice #</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Vehicle</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Plate Number</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Labor Charge</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Parts Total</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Total Amount</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Status</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Payment</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Date</th>
+          <th style="padding: 12px 8px; font-size: 12px; font-weight: 600; color: var(--text2);">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if invoices %}
+          {% for invoice in invoices %}
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 12px 8px; font-size: 13px; font-weight: 600; color: var(--blue);">
+              {{ invoice.invoice_number }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              {{ invoice.vehicle.vehicle_model }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              {{ invoice.vehicle.plate_number }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              TSh {{ invoice.labor_charge|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; color: var(--text);">
+              TSh {{ invoice.parts_total|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 13px; font-weight: 600; color: var(--text);">
+              TSh {{ invoice.total_amount|floatformat:0|intcomma }}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px;">
+              {% if invoice.status == 'pending' %}
+                <span style="background: #fffbeb; color: var(--yellow); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Pending</span>
+              {% elif invoice.status == 'in_progress' %}
+                <span style="background: #eff6ff; color: var(--blue); padding: 4px 10px; border-radius: 12px; font-weight: 600;">In Progress</span>
+              {% elif invoice.status == 'completed' %}
+                <span style="background: #f0fdf4; color: var(--green); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Completed</span>
+              {% elif invoice.status == 'paid' %}
+                <span style="background: #faf5ff; color: var(--purple); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Paid</span>
+              {% endif %}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px;">
+              {% if invoice.status == 'paid' %}
+                <span style="background: #f0fdf4; color: var(--green); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Paid</span>
+              {% else %}
+                <span style="background: #fef2f2; color: var(--red); padding: 4px 10px; border-radius: 12px; font-weight: 600;">Not Paid</span>
+              {% endif %}
+            </td>
+            <td style="padding: 12px 8px; font-size: 12px; color: var(--muted);">
+              {{ invoice.created_at|date:"d M Y" }}
+            </td>
+            <td style="padding: 12px 8px;">
+              <div style="display: flex; gap: 6px;">
+                <button onclick="viewInvoice({{ invoice.id }})" style="padding: 5px 10px; border: 1px solid var(--border); background: var(--white); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--blue);" title="View Details">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="downloadInvoice({{ invoice.id }})" style="padding: 5px 10px; border: 1px solid var(--border); background: var(--white); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--green);" title="Download Invoice">
+                  <i class="fas fa-download"></i>
+                </button>
+                {% if invoice.status != 'completed' and invoice.status != 'paid' %}
+                <button onclick="markAsCompleted({{ invoice.id }}, '{{ invoice.invoice_number }}')" style="padding: 5px 10px; border: 1px solid var(--border); background: var(--white); border-radius: 5px; cursor: pointer; font-size: 12px; color: var(--purple);" title="Mark as Completed">
+                  <i class="fas fa-check-circle"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="10" style="padding: 40px; text-align: center; color: var(--muted); font-size: 14px;">
+              <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 12px; display: block; opacity: 0.3;"></i>
+              No invoices found for {{ current_month }}
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let receiptData = null;
+
+// Modal functions
+function openNewInvoiceModal() {
+  document.getElementById('invoiceModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeInvoiceModal() {
+  document.getElementById('invoiceModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+  document.getElementById('invoiceForm').reset();
+  document.getElementById('receiptItemsSection').style.display = 'none';
+  document.getElementById('totalSummary').style.display = 'none';
+  receiptData = null;
+}
+
+// Fetch receipt items
+async function fetchReceiptItems() {
+  const receiptNumber = document.getElementById('receiptNumber').value.trim();
+  const statusDiv = document.getElementById('receiptStatus');
+  
+  if (!receiptNumber) {
+    statusDiv.innerHTML = '<span style="color: var(--red);">Please enter a receipt number</span>';
+    return;
+  }
+  
+  statusDiv.innerHTML = '<span style="color: var(--blue);"><i class="fas fa-spinner fa-spin"></i> Fetching receipt...</span>';
+  
+  try {
+    const response = await fetch(`/garage/get-receipt/${encodeURIComponent(receiptNumber)}/`);
+    const data = await response.json();
+    
+    if (data.success) {
+      receiptData = data.receipt;
+      displayReceiptItems(data.receipt);
+      statusDiv.innerHTML = '<span style="color: var(--green);"><i class="fas fa-check-circle"></i> Receipt found!</span>';
+    } else {
+      statusDiv.innerHTML = `<span style="color: var(--red);"><i class="fas fa-exclamation-circle"></i> ${data.message}</span>`;
+      document.getElementById('receiptItemsSection').style.display = 'none';
+    }
+  } catch (error) {
+    statusDiv.innerHTML = '<span style="color: var(--red);"><i class="fas fa-exclamation-triangle"></i> Error fetching receipt</span>';
+    console.error('Error:', error);
+  }
+}
+
+// Display receipt items
+function displayReceiptItems(receipt) {
+  const itemsList = document.getElementById('receiptItemsList');
+  const itemsSection = document.getElementById('receiptItemsSection');
+  const paymentStatus = document.getElementById('receiptPaymentStatus');
+  
+  let itemsHTML = '<table style="width: 100%; font-size: 12px; border-collapse: collapse;">';
+  itemsHTML += '<thead><tr style="border-bottom: 1px solid var(--border); text-align: left;">';
+  itemsHTML += '<th style="padding: 8px;">Item</th>';
+  itemsHTML += '<th style="padding: 8px; text-align: right;">Qty</th>';
+  itemsHTML += '<th style="padding: 8px; text-align: right;">Price</th>';
+  itemsHTML += '<th style="padding: 8px; text-align: right;">Total</th>';
+  itemsHTML += '</tr></thead><tbody>';
+  
+  receipt.items.forEach(item => {
+    itemsHTML += '<tr style="border-bottom: 1px solid var(--border);">';
+    itemsHTML += `<td style="padding: 8px;">${item.name}</td>`;
+    itemsHTML += `<td style="padding: 8px; text-align: right;">${item.quantity}</td>`;
+    itemsHTML += `<td style="padding: 8px; text-align: right;">TSh ${item.unit_price.toLocaleString()}</td>`;
+    itemsHTML += `<td style="padding: 8px; text-align: right;">TSh ${item.total_price.toLocaleString()}</td>`;
+    itemsHTML += '</tr>';
+  });
+  
+  itemsHTML += '</tbody></table>';
+  itemsList.innerHTML = itemsHTML;
+  
+  // Payment status
+  const isPaid = receipt.is_paid;
+  paymentStatus.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <strong>Payment Status:</strong>
+      <span style="padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 12px; ${isPaid ? 'background: #f0fdf4; color: var(--green);' : 'background: #fef2f2; color: var(--red);'}">
+        ${isPaid ? '✓ Paid' : '✗ Not Paid'}
+      </span>
+      <span style="color: var(--muted); font-size: 12px;">Total: TSh ${receipt.total_amount.toLocaleString()}</span>
+    </div>
+  `;
+  
+  itemsSection.style.display = 'block';
+  updateTotalSummary();
+}
+
+// Update total summary
+function updateTotalSummary() {
+  const laborCharge = parseFloat(document.getElementById('laborCharge').value) || 0;
+  const partsTotal = receiptData ? receiptData.total_amount : 0;
+  const grandTotal = partsTotal + laborCharge;
+  
+  document.getElementById('partsTotal').textContent = `TSh ${partsTotal.toLocaleString()}`;
+  document.getElementById('laborTotal').textContent = `TSh ${laborCharge.toLocaleString()}`;
+  document.getElementById('grandTotal').textContent = `TSh ${grandTotal.toLocaleString()}`;
+  document.getElementById('totalSummary').style.display = 'block';
+}
+
+// Listen to labor charge changes
+document.addEventListener('DOMContentLoaded', function() {
+  const laborInput = document.getElementById('laborCharge');
+  if (laborInput) {
+    laborInput.addEventListener('input', updateTotalSummary);
+  }
+});
+
+// Save invoice
+async function saveInvoice() {
+  const form = document.getElementById('invoiceForm');
+  
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  
+  const receiptNumber = document.getElementById('receiptNumber').value.trim();
+  
+  // Only require receipt data if receipt number was provided
+  if (receiptNumber && !receiptData) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Missing Receipt',
+      text: 'Please fetch receipt items first by clicking "Fetch Items"',
+      confirmButtonColor: '#3b82f6'
+    });
+    return;
+  }
+  
+  const invoiceData = {
+    receipt_number: receiptNumber,
+    plate_number: document.getElementById('plateNumber').value.trim(),
+    vehicle_model: document.getElementById('vehicleModel').value.trim(),
+    owner_name: document.getElementById('ownerName').value.trim(),
+    owner_phone: document.getElementById('ownerPhone').value.trim(),
+    service_description: document.getElementById('serviceDescription').value.trim(),
+    labor_charge: parseFloat(document.getElementById('laborCharge').value),
+    status: document.getElementById('invoiceStatus').value,
+    payment_status: document.getElementById('paymentStatus').value
+  };
+  
+  try {
+    const response = await fetch('/garage/create-invoice/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify(invoiceData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Invoice Created!',
+        html: `<p>Invoice created successfully!</p><p><strong>Invoice Number:</strong> ${data.invoice_number}</p>`,
+        confirmButtonColor: '#10b981'
+      }).then(() => {
+        closeInvoiceModal();
+        location.reload();
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: data.message,
+        confirmButtonColor: '#ef4444'
+      });
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Error creating invoice. Please try again.',
+      confirmButtonColor: '#ef4444'
+    });
+    console.error('Error:', error);
+  }
+}
+
+// Get CSRF token
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// View invoice details
+async function viewInvoice(id) {
+  try {
+    const response = await fetch(`/garage/invoice-details/${id}/`);
+    const data = await response.json();
+    
+    if (data.success) {
+      const invoice = data.invoice;
+      let itemsHtml = '<table style="width: 100%; font-size: 12px; margin-top: 10px; border-collapse: collapse;">';
+      itemsHtml += '<thead><tr style="border-bottom: 1px solid #e2e8f0; text-align: left;">';
+      itemsHtml += '<th style="padding: 8px;">Item</th><th style="padding: 8px; text-align: right;">Qty</th>';
+      itemsHtml += '<th style="padding: 8px; text-align: right;">Price</th><th style="padding: 8px; text-align: right;">Total</th></tr></thead><tbody>';
+      
+      invoice.items.forEach(item => {
+        itemsHtml += `<tr style="border-bottom: 1px solid #e2e8f0;">`;
+        itemsHtml += `<td style="padding: 8px;">${item.name}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">${item.quantity}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">TSh ${item.unit_price.toLocaleString()}</td>`;
+        itemsHtml += `<td style="padding: 8px; text-align: right;">TSh ${item.total_price.toLocaleString()}</td></tr>`;
+      });
+      itemsHtml += '</tbody></table>';
+      
+      Swal.fire({
+        title: `Invoice: ${invoice.invoice_number}`,
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Vehicle:</strong> ${invoice.vehicle_model} (${invoice.plate_number})</p>
+            <p><strong>Owner:</strong> ${invoice.owner_name || 'N/A'}</p>
+            <p><strong>Service:</strong> ${invoice.repair_description}</p>
+            <p><strong>Status:</strong> <span style="color: #10b981;">${invoice.status}</span></p>
+            <hr style="margin: 15px 0;">
+            <h4>Parts Used:</h4>
+            ${itemsHtml}
+            <hr style="margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+              <span>Parts Total:</span><strong>TSh ${invoice.parts_total.toLocaleString()}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+              <span>Labor Charges:</span><strong>TSh ${invoice.labor_charge.toLocaleString()}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding-top: 10px; border-top: 2px solid #3b82f6;">
+              <span style="font-size: 16px;"><strong>Total Amount:</strong></span>
+              <strong style="font-size: 16px; color: #3b82f6;">TSh ${invoice.total_amount.toLocaleString()}</strong>
+            </div>
+          </div>
+        `,
+        width: 600,
+        confirmButtonColor: '#3b82f6'
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: data.message,
+        confirmButtonColor: '#ef4444'
+      });
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Failed to load invoice details',
+      confirmButtonColor: '#ef4444'
+    });
+  }
+}
+
+// Download invoice as thermal receipt
+function downloadInvoice(id) {
+  window.open(`/garage/download-invoice/${id}/`, '_blank');
+}
+
+// Mark invoice as completed
+async function markAsCompleted(id, invoiceNumber) {
+  const result = await Swal.fire({
+    title: 'Mark as Completed',
+    html: `
+      <p>Invoice: <strong>${invoiceNumber}</strong></p>
+      <p style="margin-top: 15px;">Has this invoice been paid?</p>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    showDenyButton: true,
+    confirmButtonText: 'Yes, Paid',
+    denyButtonText: 'No, Not Paid',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#10b981',
+    denyButtonColor: '#f59e0b',
+    cancelButtonColor: '#94a3b8'
+  });
+  
+  if (result.isConfirmed || result.isDenied) {
+    const isPaid = result.isConfirmed;
+    
+    try {
+      const response = await fetch(`/garage/mark-completed/${id}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ is_paid: isPaid })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Updated!',
+          text: `Invoice marked as ${isPaid ? 'paid' : 'completed'}`,
+          confirmButtonColor: '#10b981'
+        }).then(() => {
+          location.reload();
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: data.message,
+          confirmButtonColor: '#ef4444'
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to update invoice',
+        confirmButtonColor: '#ef4444'
+      });
+    }
+  }
+}
+</script>
+{% endblock %}

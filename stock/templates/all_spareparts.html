@@ -1,4 +1,5 @@
 {% extends 'stock_base.html' %}
+{% load humanize %}
 
 {% block title %}All Products - Gdence{% endblock %}
 
@@ -30,14 +31,15 @@
         </div>
     </div>
 
-    <div class="table-container">
+    <div class="table-container" style="overflow-x: auto;">
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Type</th>
                     <th>Part Number</th>
                     <th>Name</th>
-                    <th>Price</th>
+                    <th>Buying Price</th>
+                    <th>Selling Price</th>
                     <th>Initial Qty</th>
                     <th>Sold</th>
                     <th>Added Stock</th>
@@ -53,7 +55,8 @@
                     <td><span class="badge badge-info">New</span></td>
                     <td>{{ part.part_number|default:"-" }}</td>
                     <td>{{ part.name }}</td>
-                    <td>TSh {{ part.unit_price|floatformat:0 }}</td>
+                    <td>TSh {{ part.buying_price|floatformat:0|intcomma }}</td>
+                    <td>TSh {{ part.selling_price|floatformat:0|intcomma }}</td>
                     <td>{{ part.initial_quantity }}</td>
                     <td>{{ part.sold_quantity }}</td>
                     <td>{{ part.added_stock }}</td>
@@ -79,7 +82,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn-icon btn-edit" onclick='openEditNewModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", {{ part.unit_price }}, {{ part.minimum_stock_level }})' title="Edit">
+                        <button class="btn-icon btn-edit" onclick='openEditNewModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", {{ part.buying_price }}, {{ part.selling_price }}, {{ part.minimum_stock_level }})' title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn-icon btn-delete" onclick="deleteNewPart({{ part.id }})" title="Delete">
@@ -93,7 +96,8 @@
                     <td><span class="badge badge-secondary">Used</span></td>
                     <td>{{ part.part_number|default:"-" }}</td>
                     <td>{{ part.name }}</td>
-                    <td>TSh {{ part.whole_price|floatformat:0 }}</td>
+                    <td>TSh {{ part.whole_buying_price|floatformat:0|intcomma }}</td>
+                    <td>TSh {{ part.whole_selling_price|floatformat:0|intcomma }}</td>
                     <td>{{ part.initial_quantity }}</td>
                     <td>{{ part.sold_quantity }}</td>
                     <td>{{ part.added_stock }}</td>
@@ -118,7 +122,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn-icon btn-edit" onclick='openEditUsedModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", "{{ part.condition }}", {{ part.whole_price }}, {{ part.initial_quantity }})' title="Edit">
+                        <button class="btn-icon btn-edit" onclick='openEditUsedModal({{ part.id }}, "{{ part.part_number|default:"" }}", "{{ part.name }}", "{{ part.description|default:"" }}", "{{ part.condition }}", {{ part.whole_buying_price }}, {{ part.whole_selling_price }}, {{ part.initial_quantity }})' title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn-icon btn-delete" onclick="deleteUsedPart({{ part.id }})" title="Delete">
@@ -161,8 +165,12 @@
                         <input type="text" id="name" name="name" required placeholder="Enter product name">
                     </div>
                     <div class="form-group">
-                        <label for="unit_price">Unit Price <span class="required">*</span></label>
-                        <input type="number" id="unit_price" name="unit_price" step="0.01" required placeholder="0.00">
+                        <label for="buying_price">Buying Price <span class="required">*</span></label>
+                        <input type="number" id="buying_price" name="buying_price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="selling_price">Selling Price <span class="required">*</span></label>
+                        <input type="number" id="selling_price" name="selling_price" step="0.01" required placeholder="0.00">
                     </div>
                     <div class="form-group">
                         <label for="initial_quantity">Initial Quantity <span class="required">*</span></label>
@@ -215,8 +223,12 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="whole_price">Whole Price <span class="required">*</span></label>
-                        <input type="number" id="whole_price" name="whole_price" step="0.01" required placeholder="0.00">
+                        <label for="whole_buying_price">Whole Buying Price <span class="required">*</span></label>
+                        <input type="number" id="whole_buying_price" name="whole_buying_price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="whole_selling_price">Whole Selling Price <span class="required">*</span></label>
+                        <input type="number" id="whole_selling_price" name="whole_selling_price" step="0.01" required placeholder="0.00">
                     </div>
                     <div class="form-group">
                         <label for="used_initial_quantity">Initial Quantity <span class="required">*</span></label>
@@ -264,7 +276,8 @@
                             <thead>
                                 <tr>
                                     <th>Component Name</th>
-                                    <th>Unit Price</th>
+                                    <th>Buying Price</th>
+                                    <th>Selling Price</th>
                                     <th>Initial Qty</th>
                                     <th>Sold</th>
                                     <th>Remain</th>
@@ -698,14 +711,15 @@
         document.getElementById('newPartModal').classList.add('active');
     }
 
-    function openEditNewModal(id, partNumber, name, description, unitPrice, minLevel) {
+    function openEditNewModal(id, partNumber, name, description, buyingPrice, sellingPrice, minLevel) {
         isNewEditMode = true;
         newEditId = id;
         document.getElementById('newModalTitle').textContent = 'Edit Product';
         document.getElementById('part_number').value = partNumber;
         document.getElementById('name').value = name;
         document.getElementById('description').value = description;
-        document.getElementById('unit_price').value = unitPrice;
+        document.getElementById('buying_price').value = buyingPrice;
+        document.getElementById('selling_price').value = sellingPrice;
         document.getElementById('minimum_stock_level').value = minLevel;
         document.getElementById('newPartModal').classList.add('active');
     }
@@ -723,7 +737,7 @@
         document.getElementById('usedPartModal').classList.add('active');
     }
 
-    function openEditUsedModal(id, partNumber, name, description, condition, wholePrice, initialQty) {
+    function openEditUsedModal(id, partNumber, name, description, condition, wholeBuyingPrice, wholeSellingPrice, initialQty) {
         isUsedEditMode = true;
         usedEditId = id;
         document.getElementById('usedModalTitle').textContent = 'Edit Used Product';
@@ -731,7 +745,8 @@
         document.getElementById('used_name').value = name;
         document.getElementById('used_description').value = description;
         document.getElementById('condition').value = condition;
-        document.getElementById('whole_price').value = wholePrice;
+        document.getElementById('whole_buying_price').value = wholeBuyingPrice;
+        document.getElementById('whole_selling_price').value = wholeSellingPrice;
         document.getElementById('used_initial_quantity').value = initialQty;
         document.getElementById('usedPartModal').classList.add('active');
     }
@@ -757,8 +772,12 @@
                 <input type="text" name="component_name[]" placeholder="Enter component name" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
             </div>
             <div>
-                <label style="font-size: 13px; margin-bottom: 4px;">Component Price</label>
-                <input type="number" name="component_price[]" step="0.01" placeholder="0.00" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                <label style="font-size: 13px; margin-bottom: 4px;">Buying Price</label>
+                <input type="number" name="component_buying_price[]" step="0.01" placeholder="0.00" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; margin-bottom: 4px;">Selling Price</label>
+                <input type="number" name="component_selling_price[]" step="0.01" placeholder="0.00" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
             </div>
             <div>
                 <label style="font-size: 13px; margin-bottom: 4px;">Initial Quantity</label>
@@ -937,7 +956,8 @@
                 tbody.innerHTML = data.components.map(comp => `
                     <tr>
                         <td>${comp.name}</td>
-                        <td>TSh ${parseFloat(comp.unit_price).toLocaleString()}</td>
+                        <td>TSh ${parseFloat(comp.buying_price).toLocaleString()}</td>
+                        <td>TSh ${parseFloat(comp.selling_price).toLocaleString()}</td>
                         <td>${comp.initial_quantity}</td>
                         <td>${comp.sold_quantity}</td>
                         <td>${comp.current_quantity}</td>
@@ -949,11 +969,11 @@
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No components found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No components found</td></tr>';
             }
         })
         .catch(error => {
-            document.getElementById('componentsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #EF4444;">Error loading components</td></tr>';
+            document.getElementById('componentsTableBody').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #EF4444;">Error loading components</td></tr>';
         });
     }
 

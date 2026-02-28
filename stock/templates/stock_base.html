@@ -288,6 +288,13 @@
             </div>
 
             <div class="nav-group">
+                <a href="{% url 'stock:stock_releases' %}" class="nav-link {% if active_page == 'stock_releases' %}active{% endif %}">
+                    <i class="fas fa-box-open"></i>
+                    <span>Stock Releases</span>
+                </a>
+            </div>
+
+            <div class="nav-group">
                 <a href="{% url 'logout' %}" class="nav-link">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>

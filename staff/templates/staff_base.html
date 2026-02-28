@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% block extra_head %}{% endblock %}
     <style>
         :root {
             --sidebar-width: 260px;
@@ -314,6 +315,10 @@
             <a href="{% url 'staff:car_diagnosing' %}" class="nav-item {% if active_page == 'car_diagnosing' %}active{% endif %}">
                 <i class="fas fa-car-crash"></i>
                 <span>Car Diagnosing</span>
+            </a>
+            <a href="{% url 'staff:garage_invoices' %}" class="nav-item {% if active_page == 'garage_invoices' %}active{% endif %}">
+                <i class="fas fa-wrench"></i>
+                <span>Garage Services</span>
             </a>
             <a href="{% url 'staff:opening_balance' %}" class="nav-item {% if active_page == 'opening_balance' %}active{% endif %}">
                 <i class="fas fa-wallet"></i>

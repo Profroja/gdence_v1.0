@@ -29,6 +29,8 @@ def redirect_based_on_role(user):
         return redirect('staff:dashboard')
     elif user.role == 'stock':
         return redirect('stock:dashboard')
+    elif user.role == 'garage':
+        return redirect('garage:dashboard')
     else:
         return redirect('logout')
 

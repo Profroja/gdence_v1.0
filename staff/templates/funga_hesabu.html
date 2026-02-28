@@ -306,6 +306,18 @@
                 <div class="stat-count">{{ car_diagnosing_count }} diagnos{{ car_diagnosing_count|pluralize:"is,es" }}</div>
             </div>
 
+            <!-- Garage Labor -->
+            <div class="stat-card diagnostic">
+                <div class="stat-header">
+                    <span class="stat-title">Garage Labor</span>
+                    <div class="stat-icon">
+                        <i class="fas fa-wrench"></i>
+                    </div>
+                </div>
+                <div class="stat-value">Tsh {{ garage_labor_amount|floatformat:0|intcomma }}</div>
+                <div class="stat-count">{{ garage_labor_count }} service{{ garage_labor_count|pluralize }}</div>
+            </div>
+
             <!-- Total Sales -->
             <div class="stat-card sales">
                 <div class="stat-header">
@@ -330,17 +342,7 @@
                 <div class="stat-count">{{ expenditure_count }} expense{{ expenditure_count|pluralize }}</div>
             </div>
 
-            <!-- Total Revenue -->
-            <div class="stat-card revenue">
-                <div class="stat-header">
-                    <span class="stat-title">Total Revenue</span>
-                    <div class="stat-icon">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </div>
-                </div>
-                <div class="stat-value">Tsh {{ total_revenue|floatformat:0|intcomma }}</div>
-                <div class="stat-count">All income sources</div>
-            </div>
+         
         </div>
     </div>
 {% endblock %}

@@ -24,7 +24,8 @@ class NewSparePart(models.Model):
     description = models.TextField(blank=True, null=True)
     
     # Pricing
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Price at which the part was purchased")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Price at which the part is sold")
     
     # Inventory tracking
     initial_quantity = models.IntegerField(validators=[MinValueValidator(0)], default=0)
@@ -59,7 +60,17 @@ class NewSparePart(models.Model):
 
     @property
     def total_value(self):
-        return self.current_quantity * self.unit_price
+        return self.current_quantity * self.selling_price
+
+    @property
+    def total_buying_value(self):
+        return self.current_quantity * self.buying_price
+
+    @property
+    def profit_margin(self):
+        if self.buying_price > 0:
+            return ((self.selling_price - self.buying_price) / self.buying_price) * 100
+        return 0
 
     @property
     def added_stock(self):
@@ -90,7 +101,8 @@ class UsedSparePart(models.Model):
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='good')
     
     # Pricing - can be sold as whole or parts
-    whole_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Price for the entire used part")
+    whole_buying_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Buying price for the entire used part")
+    whole_selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Selling price for the entire used part")
     
     # Inventory tracking
     initial_quantity = models.IntegerField(validators=[MinValueValidator(0)], default=1)
@@ -151,7 +163,19 @@ class UsedSparePart(models.Model):
     def total_value(self):
         if self.is_broken_down:
             return sum(comp.total_value for comp in self.components.all())
-        return self.current_quantity * self.whole_price
+        return self.current_quantity * self.whole_selling_price
+
+    @property
+    def total_buying_value(self):
+        if self.is_broken_down:
+            return sum(comp.total_buying_value for comp in self.components.all())
+        return self.current_quantity * self.whole_buying_price
+
+    @property
+    def profit_margin(self):
+        if self.whole_buying_price > 0:
+            return ((self.whole_selling_price - self.whole_buying_price) / self.whole_buying_price) * 100
+        return 0
 
     @property
     def added_stock(self):
@@ -173,7 +197,8 @@ class Component(models.Model):
     description = models.TextField(blank=True, null=True)
     
     # Pricing
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Buying price for this component")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], help_text="Selling price for this component")
     
     # Inventory tracking
     initial_quantity = models.IntegerField(validators=[MinValueValidator(0)], default=1)
@@ -197,7 +222,17 @@ class Component(models.Model):
 
     @property
     def total_value(self):
-        return self.current_quantity * self.unit_price
+        return self.current_quantity * self.selling_price
+
+    @property
+    def total_buying_value(self):
+        return self.current_quantity * self.buying_price
+
+    @property
+    def profit_margin(self):
+        if self.buying_price > 0:
+            return ((self.selling_price - self.buying_price) / self.buying_price) * 100
+        return 0
 
     @property
     def added_stock(self):
@@ -438,3 +473,23 @@ class PaymentHistory(models.Model):
     
     def __str__(self):
         return f"Payment of TSh {self.amount} for {self.sale.receipt_number}"
+
+
+class StockAuthorization(models.Model):
+    """Track when staff authorizes stock release for a sale"""
+    sale = models.OneToOneField('Sale', on_delete=models.CASCADE, related_name='stock_authorization')
+    authorized_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='stock_authorizations')
+    authorized_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-authorized_at']
+        verbose_name = "Stock Authorization"
+        verbose_name_plural = "Stock Authorizations"
+        indexes = [
+            models.Index(fields=['authorized_at']),
+            models.Index(fields=['-authorized_at']),
+        ]
+    
+    def __str__(self):
+        return f"Stock Authorization for {self.sale.receipt_number}"

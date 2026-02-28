@@ -1,0 +1,31 @@
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">🚗</div>
+    <span class="logo-name">Gdence<br>Autospare Parts</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="{% url 'garage:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <i class="fas fa-th-large"></i>
+      Dashboard
+    </a>
+    <a href="{% url 'garage:invoices' %}" class="nav-link {% if request.resolver_match.url_name == 'invoices' %}active{% endif %}">
+      <i class="fas fa-file-invoice"></i>
+      Invoices
+    </a>
+
+    <a href="{% url 'logout' %}" class="nav-link">
+      <i class="fas fa-sign-out-alt"></i>
+      Logout
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-ava">{{ request.user.first_name.0|default:"U" }}{{ request.user.last_name.0|default:"" }}</div>
+    <div class="user-details">
+      <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+      <div class="user-role">{{ request.user.role|title }}</div>
+    </div>
+  </div>
+</aside>

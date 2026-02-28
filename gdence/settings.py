@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'manager',
     'staff',
     'stock',
+    'garage',
 ]
 
 MIDDLEWARE = [

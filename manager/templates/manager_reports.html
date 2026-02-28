@@ -1,0 +1,562 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Business Reports - Gdence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-bg:  #0f1e35;
+      --sidebar-hover: rgba(255,255,255,0.06);
+      --sidebar-active: rgba(59,130,246,0.15);
+      --sidebar-border: rgba(255,255,255,0.08);
+      --sidebar-text: #8ba5c2;
+      --sidebar-w: 220px;
+
+      --bg:      #f1f5f9;
+      --white:   #ffffff;
+      --border:  #e2e8f0;
+
+      --blue:    #3b82f6;
+      --green:   #10b981;
+      --yellow:  #f59e0b;
+      --red:     #ef4444;
+      --purple:  #8b5cf6;
+      --teal:    #06b6d4;
+      --indigo:  #6366f1;
+      --pink:    #ec4899;
+
+      --text:    #1e293b;
+      --text2:   #475569;
+      --muted:   #94a3b8;
+
+      --header-h: 56px;
+      --r: 8px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      transition: transform .25s ease;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 16px 16px;
+      border-bottom: 1px solid var(--sidebar-border);
+    }
+    .logo-mark {
+      width: 36px; height: 36px;
+      background: var(--blue);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .logo-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.2px;
+      line-height: 1.3;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 10px 8px;
+      overflow-y: auto;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 0; }
+
+    .nav-group-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: rgba(139,165,194,0.6);
+      padding: 12px 10px 6px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 12px;
+      border-radius: 7px;
+      text-decoration: none;
+      color: var(--sidebar-text);
+      font-size: 14px;
+      font-weight: 500;
+      transition: background .15s, color .15s;
+      margin-bottom: 2px;
+      position: relative;
+    }
+    .nav-link:hover { background: var(--sidebar-hover); color: #c9daf0; }
+    .nav-link.active {
+      background: var(--sidebar-active);
+      color: #fff;
+      border-left: 3px solid var(--blue);
+      padding-left: 9px;
+    }
+    .nav-link i { width: 18px; font-size: 16px; flex-shrink: 0; text-align: center; }
+
+    .sidebar-user {
+      padding: 10px 12px 14px;
+      border-top: 1px solid var(--sidebar-border);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+    }
+    .sidebar-user:hover { background: var(--sidebar-hover); }
+    .user-ava {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .user-details { flex: 1; overflow: hidden; }
+    .user-name { font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 11px; color: var(--sidebar-text); }
+
+    /* ─── TOPBAR ─── */
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: var(--sidebar-w);
+      right: 0;
+      height: var(--header-h);
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      z-index: 100;
+      transition: left .25s ease;
+    }
+
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ─── MAIN ─── */
+    .main {
+      margin-left: var(--sidebar-w);
+      padding-top: var(--header-h);
+      flex: 1;
+      min-width: 0;
+      transition: margin-left .25s ease;
+    }
+    .content { padding: 20px; max-width: 1400px; }
+
+    /* ─── PAGE HEADER ─── */
+    .page-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-hd h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .page-hd p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ─── FILTER SECTION ─── */
+    .filter-section {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .filter-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--white);
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+    .btn-generate {
+      padding: 8px 16px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: auto;
+      transition: background .15s;
+    }
+    .btn-generate:hover {
+      background: #2563eb;
+    }
+
+    /* ─── SECTION HEADER ─── */
+    .section-hd {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-hd i {
+      font-size: 18px;
+    }
+    .section-hd h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ─── WIDGET GRID ─── */
+    .widget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .widget {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-left: 4px solid var(--blue);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .widget:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .widget-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .widget-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .widget-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .widget-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Widget Colors */
+    .widget.blue { border-color: var(--blue); }
+    .widget.blue .widget-icon { background: rgba(59, 130, 246, 0.1); color: var(--blue); }
+
+    .widget.green { border-color: var(--green); }
+    .widget.green .widget-icon { background: rgba(16, 185, 129, 0.1); color: var(--green); }
+
+    .widget.yellow { border-color: var(--yellow); }
+    .widget.yellow .widget-icon { background: rgba(245, 158, 11, 0.1); color: var(--yellow); }
+
+    .widget.red { border-color: var(--red); }
+    .widget.red .widget-icon { background: rgba(239, 68, 68, 0.1); color: var(--red); }
+
+    .widget.purple { border-color: var(--purple); }
+    .widget.purple .widget-icon { background: rgba(139, 92, 246, 0.1); color: var(--purple); }
+
+    .widget.teal { border-color: var(--teal); }
+    .widget.teal .widget-icon { background: rgba(6, 182, 212, 0.1); color: var(--teal); }
+
+    .widget.indigo { border-color: var(--indigo); }
+    .widget.indigo .widget-icon { background: rgba(99, 102, 241, 0.1); color: var(--indigo); }
+
+    .widget.pink { border-color: var(--pink); }
+    .widget.pink .widget-icon { background: rgba(236, 72, 153, 0.1); color: var(--pink); }
+
+    /* ─── SUMMARY CARDS ─── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .summary-card {
+      background: linear-gradient(135deg, var(--blue), #2563eb);
+      border-radius: 12px;
+      padding: 24px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .summary-card.green {
+      background: linear-gradient(135deg, var(--green), #059669);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .summary-card.purple {
+      background: linear-gradient(135deg, var(--purple), #7c3aed);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .summary-label {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.9;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .summary-value {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .summary-sub {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+      .widget-grid {
+        grid-template-columns: 1fr;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay"></div>
+
+{% include 'sidebar.html' %}
+
+<!-- ═══ TOPBAR ═══ -->
+<header class="topbar" id="topbar">
+  <span class="topbar-title">Business Reports</span>
+  <span style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 12px;">MANAGER</span>
+</header>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main">
+  <div class="content">
+    
+    <!-- Page Header -->
+    <div class="page-hd">
+      <div>
+        <h1>📊 Business Reports</h1>
+        <p>Comprehensive business analytics and insights</p>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+      <form method="GET" action="{% url 'manager:reports' %}">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label class="filter-label">Month</label>
+            <select name="month" class="filter-select">
+              {% for month in months %}
+              <option value="{{ month.value }}" {% if month.value == selected_month %}selected{% endif %}>
+                {{ month.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Year</label>
+            <select name="year" class="filter-select">
+              {% for year in years %}
+              <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
+                {{ year }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <button type="submit" class="btn-generate">
+            <i class="fas fa-sync-alt"></i>
+            Generate Report
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Period Display -->
+    <div style="text-align: center; margin-bottom: 32px;">
+      <h2 style="font-size: 24px; font-weight: 800; color: var(--text);">{{ selected_period }}</h2>
+      <p style="font-size: 13px; color: var(--muted);">Download Business Reports</p>
+    </div>
+
+    <!-- Download Report Cards -->
+    <div class="widget-grid">
+      <!-- Car Diagnosing Report -->
+      <div class="widget purple">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-car-crash"></i></div>
+        </div>
+        <div class="widget-value">Download Car Diagnosing Report</div>
+        <div class="widget-sub">All car diagnosis records for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--purple); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+
+      <!-- Garage Services Report -->
+      <div class="widget teal">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-wrench"></i></div>
+        </div>
+        <div class="widget-value">Download Garage Service Report</div>
+        <div class="widget-sub">Complete garage operations for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--teal); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+
+      <!-- Sales Report -->
+      <div class="widget blue">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-shopping-cart"></i></div>
+        </div>
+        <div class="widget-value">Download Sales Report</div>
+        <div class="widget-sub">All sales transactions for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--blue); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+
+      <!-- Products Report -->
+      <div class="widget green">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-boxes"></i></div>
+        </div>
+        <div class="widget-value">Download Products Report</div>
+        <div class="widget-sub">Inventory and stock status for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--green); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+
+      <!-- Customer Debts Report -->
+      <div class="widget yellow">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        </div>
+        <div class="widget-value">Download Customer Debts Report</div>
+        <div class="widget-sub">All debt records and payments for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--yellow); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+
+      <!-- Expenditure Report -->
+      <div class="widget red">
+        <div class="widget-header">
+          <div class="widget-icon"><i class="fas fa-receipt"></i></div>
+        </div>
+        <div class="widget-value">Download Expenditure Report</div>
+        <div class="widget-sub">All expenses and costs for {{ selected_period }}</div>
+        <button class="download-btn" style="margin-top: 16px; width: 100%; padding: 10px; background: var(--red); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-download"></i>
+          Download PDF
+        </button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // Update topbar title
+  document.querySelector('.topbar-title').textContent = 'Business Reports';
+</script>
+</body>
+</html>

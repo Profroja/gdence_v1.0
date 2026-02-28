@@ -533,6 +533,15 @@
       .stats-3col { grid-template-columns: 1fr; }
       .stats-2col { grid-template-columns: 1fr; }
     }
+
+    /* ─── SWAL OVERRIDE ─── */
+    /* Ensure SweetAlert2 appears on top of everything */
+    .swal2-container {
+      z-index: 9999 !important;
+    }
+    .swal2-popup {
+      z-index: 10000 !important;
+    }
   </style>
 </head>
 <body>
@@ -594,7 +603,7 @@
           <span class="stat-label">Active Staff</span>
           <div class="stat-icon si-g"><i class="fas fa-user-check"></i></div>
         </div>
-        <div class="stat-val">{% for staff in staff_users %}{% if staff.is_active %}{{ forloop.counter }}{% endif %}{% endfor %}</div>
+        <div class="stat-val">{{ active_staff_count|default:"0" }}</div>
         <div class="stat-sub"><span class="up"><i class="fas fa-arrow-up"></i> Online</span></div>
       </div>
       <div class="stat">
@@ -602,7 +611,7 @@
           <span class="stat-label">Inactive Staff</span>
           <div class="stat-icon si-y"><i class="fas fa-user-times"></i></div>
         </div>
-        <div class="stat-val">{% for staff in staff_users %}{% if not staff.is_active %}{{ forloop.counter }}{% endif %}{% endfor %}</div>
+        <div class="stat-val">{{ inactive_staff_count|default:"0" }}</div>
         <div class="stat-sub"><span class="grey">Deactivated</span></div>
       </div>
     </div>
@@ -619,6 +628,8 @@
           <thead>
             <tr style="border-bottom: 2px solid var(--border);">
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">S/N</th>
+              <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">First Name</th>
+              <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Last Name</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Username</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Email</th>
               <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;">Phone Number</th>
@@ -632,6 +643,8 @@
             {% for staff in staff_users %}
             <tr style="border-bottom: 1px solid var(--border);">
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ forloop.counter }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text);">{{ staff.first_name|default:"-" }}</td>
+              <td style="padding: 12px; font-size: 13px; color: var(--text);">{{ staff.last_name|default:"-" }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text); font-weight: 600;">{{ staff.username }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ staff.email|default:"-" }}</td>
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ staff.mobile_number|default:"-" }}</td>
@@ -640,6 +653,8 @@
                   <span style="background: rgba(59, 130, 246, 0.1); color: var(--blue); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">Staff</span>
                 {% elif staff.role == 'stock' %}
                   <span style="background: rgba(139, 92, 246, 0.1); color: var(--purple); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">Stock</span>
+                {% elif staff.role == 'garage' %}
+                  <span style="background: rgba(6, 182, 212, 0.1); color: var(--teal); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">Garage</span>
                 {% endif %}
               </td>
               <td style="padding: 12px;">
@@ -652,7 +667,7 @@
               <td style="padding: 12px; font-size: 13px; color: var(--text2);">{{ staff.date_joined|date:"d M, Y" }}</td>
               <td style="padding: 12px;">
                 <div style="display: flex; gap: 6px;">
-                  <button onclick="openEditModal({{ staff.id }}, '{{ staff.username }}', '{{ staff.email }}', '{{ staff.mobile_number }}', '{{ staff.role }}')" 
+                  <button onclick="openEditModal({{ staff.id }}, '{{ staff.first_name }}', '{{ staff.last_name }}', '{{ staff.username }}', '{{ staff.email }}', '{{ staff.mobile_number }}', '{{ staff.role }}')" 
                           style="background: none; border: none; padding: 6px; cursor: pointer; color: var(--blue); border-radius: 4px; transition: all .15s;"
                           onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='none'"
                           title="Edit">
@@ -697,6 +712,16 @@
             <input type="hidden" id="staff_id" value="">
             
             <div style="margin-bottom: 18px;">
+              <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px;">First Name *</label>
+              <input type="text" id="first_name" name="first_name" required placeholder="Enter first name" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom: 18px;">
+              <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Last Name *</label>
+              <input type="text" id="last_name" name="last_name" required placeholder="Enter last name" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom: 18px;">
               <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Username *</label>
               <input type="text" id="username" name="username" required placeholder="Enter username" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit;">
             </div>
@@ -717,6 +742,7 @@
                 <option value="">-- Select Role --</option>
                 <option value="staff">Staff</option>
                 <option value="stock">Stock Manager</option>
+                <option value="garage">Garage</option>
               </select>
             </div>
 
@@ -768,11 +794,13 @@
   }
 
   // Open modal for editing staff
-  function openEditModal(id, username, email, mobile_number, role) {
+  function openEditModal(id, first_name, last_name, username, email, mobile_number, role) {
     isEditMode = true;
     document.getElementById('modalTitle').textContent = 'Edit Staff Member';
     document.getElementById('submitBtnText').textContent = 'Update';
     document.getElementById('staff_id').value = id;
+    document.getElementById('first_name').value = first_name || '';
+    document.getElementById('last_name').value = last_name || '';
     document.getElementById('username').value = username;
     document.getElementById('email').value = email || '';
     document.getElementById('mobile_number').value = mobile_number || '';
@@ -796,6 +824,8 @@
     
     const formData = new FormData(event.target);
     const data = {
+      first_name: formData.get('first_name'),
+      last_name: formData.get('last_name'),
       username: formData.get('username'),
       email: formData.get('email'),
       mobile_number: formData.get('mobile_number'),
@@ -821,6 +851,8 @@
   // Create staff via AJAX
   function createStaff(data) {
     const formData = new FormData();
+    formData.append('first_name', data.first_name);
+    formData.append('last_name', data.last_name);
     formData.append('username', data.username);
     formData.append('email', data.email);
     formData.append('mobile_number', data.mobile_number);
@@ -866,6 +898,8 @@
   // Update staff via AJAX
   function updateStaff(data) {
     const formData = new FormData();
+    formData.append('first_name', data.first_name);
+    formData.append('last_name', data.last_name);
     formData.append('username', data.username);
     formData.append('email', data.email);
     formData.append('mobile_number', data.mobile_number);

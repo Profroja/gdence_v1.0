@@ -15,9 +15,11 @@ urlpatterns = [
     path('all-sales/', views.all_sales, name='all_sales'),
     path('sale-details/<int:sale_id>/', views.sale_details, name='sale_details'),
     path('car-diagnosing/', views.car_diagnosing, name='car_diagnosing'),
+    path('garage-invoices/', views.garage_invoices, name='garage_invoices'),
     path('customer-debts/', views.customer_debts, name='customer_debts'),
     path('debt-details/<int:sale_id>/', views.debt_details, name='debt_details'),
     path('expenditure/', views.expenditure, name='expenditure'),
     path('opening-balance/', views.opening_balance, name='opening_balance'),
     path('funga-hesabu/', views.funga_hesabu, name='funga_hesabu'),
+    path('reports/', views.reports, name='reports'),
 ]

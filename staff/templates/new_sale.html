@@ -566,7 +566,7 @@
                  data-product-id="{{ part.id }}"
                  data-name="{{ part.name|lower }}" 
                  data-part-number="{{ part.part_number|default:''|lower }}"
-                 onclick="addToCart({{ part.id }}, '{{ part.name }}', {{ part.unit_price }}, 'new', {{ part.current_quantity }})">
+                 onclick="addToCart({{ part.id }}, '{{ part.name }}', {{ part.selling_price }}, 'new', {{ part.current_quantity }})">
                 <div style="position: absolute; top: 8px; right: 8px;">
                     <span style="background: #3B82F6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;">NEW</span>
                 </div>
@@ -574,7 +574,7 @@
                     <i class="fas fa-box"></i>
                 </div>
                 <div class="product-name">{{ part.name }}</div>
-                <div class="product-price">TSh {{ part.unit_price|floatformat:0|intcomma }}</div>
+                <div class="product-price">TSh {{ part.selling_price|floatformat:0|intcomma }}</div>
                 <div class="product-stock {% if part.is_out_of_stock %}out{% elif part.is_low_stock %}low{% endif %}">
                     Stock: {{ part.current_quantity }}
                 </div>
@@ -589,7 +589,7 @@
                  data-part-number="{{ part.part_number|default:''|lower }}"
                  data-used-part-id="{{ part.id }}"
                  data-can-breakdown="{{ part.can_be_broken_down|yesno:'true,false' }}"
-                 onclick="handleUsedPartClick({{ part.id }}, '{{ part.name }}', {{ part.whole_price }}, {{ part.current_quantity }}, {{ part.can_be_broken_down|yesno:'true,false' }})">
+                 onclick="handleUsedPartClick({{ part.id }}, '{{ part.name }}', {{ part.whole_selling_price }}, {{ part.current_quantity }}, {{ part.can_be_broken_down|yesno:'true,false' }})">
                 <div style="position: absolute; top: 8px; right: 8px;">
                     <span style="background: #F59E0B; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;">USED</span>
                 </div>
@@ -597,7 +597,7 @@
                     <i class="fas fa-recycle"></i>
                 </div>
                 <div class="product-name">{{ part.name }}</div>
-                <div class="product-price">TSh {{ part.whole_price|floatformat:0|intcomma }}</div>
+                <div class="product-price">TSh {{ part.whole_selling_price|floatformat:0|intcomma }}</div>
                 <div class="product-stock {% if part.is_out_of_stock %}out{% endif %}">
                     Stock: {{ part.current_quantity }}
                 </div>
@@ -981,10 +981,10 @@ function showComponentsModal(components) {
     document.getElementById('componentsModalTitle').textContent = `${currentUsedPart.name} - Components`;
     
     componentsList.innerHTML = components.map(comp => `
-        <div class="component-item" onclick="addComponentToCart(${comp.id}, '${comp.name}', ${comp.unit_price}, ${comp.current_quantity})">
+        <div class="component-item" onclick="addComponentToCart(${comp.id}, '${comp.name}', ${comp.selling_price}, ${comp.current_quantity})">
             <div class="component-info">
                 <div class="component-name">${comp.name}</div>
-                <div class="component-price">TSh ${comp.unit_price.toLocaleString()}</div>
+                <div class="component-price">TSh ${comp.selling_price.toLocaleString()}</div>
             </div>
             <div class="component-stock ${comp.current_quantity <= 0 ? 'out' : ''}">
                 Stock: ${comp.current_quantity}
@@ -1251,10 +1251,21 @@ function completeSale() {
             Swal.fire({
                 icon: 'success',
                 title: 'Sale Completed!',
-                text: `Receipt #${data.receipt_number}`,
+                html: `
+                    <p>Receipt #${data.receipt_number}</p>
+                    <p style="margin-top: 10px;">Total: TSh ${data.total_amount.toLocaleString()}</p>
+                `,
+                showDenyButton: true,
                 showConfirmButton: true,
-                confirmButtonText: 'OK'
-            }).then(() => {
+                confirmButtonText: '� Download Receipt',
+                denyButtonText: 'Close',
+                confirmButtonColor: '#3B82F6',
+                denyButtonColor: '#6B7280'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Download thermal receipt PDF
+                    window.location.href = `/staff/thermal-receipt/${data.sale_id}/`;
+                }
                 // Clear cart
                 cart = [];
                 updateCart();

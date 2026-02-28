@@ -3,7 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F
 from django.http import JsonResponse
-from .models import NewSparePart, UsedSparePart, Component, Category, StockHistory
+from .models import NewSparePart, UsedSparePart, Component, Category, StockHistory, StockAuthorization, Sale
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 @login_required(login_url='login')
 def dashboard(request):
@@ -20,17 +22,17 @@ def dashboard(request):
 
     # Total stock value across all types
     new_value = NewSparePart.objects.filter(is_active=True).aggregate(
-        total=Sum(F('current_quantity') * F('unit_price'))
+        total=Sum(F('current_quantity') * F('selling_price'))
     )['total'] or 0
 
     used_value = UsedSparePart.objects.filter(
         is_active=True, is_broken_down=False
     ).aggregate(
-        total=Sum(F('current_quantity') * F('whole_price'))
+        total=Sum(F('current_quantity') * F('whole_selling_price'))
     )['total'] or 0
 
     component_value = Component.objects.filter(is_active=True).aggregate(
-        total=Sum(F('current_quantity') * F('unit_price'))
+        total=Sum(F('current_quantity') * F('selling_price'))
     )['total'] or 0
 
     total_stock_value = new_value + used_value + component_value
@@ -85,7 +87,8 @@ def new_part_create(request):
                 name=request.POST.get('name'),
                 category=None,
                 description=request.POST.get('description') or None,
-                unit_price=request.POST.get('unit_price'),
+                buying_price=request.POST.get('buying_price'),
+                selling_price=request.POST.get('selling_price'),
                 initial_quantity=initial_qty,
                 current_quantity=initial_qty,
                 minimum_stock_level=request.POST.get('minimum_stock_level', 5),
@@ -114,7 +117,8 @@ def new_part_edit(request, pk):
             part.part_number = request.POST.get('part_number') or None
             part.name = request.POST.get('name')
             part.description = request.POST.get('description') or None
-            part.unit_price = request.POST.get('unit_price')
+            part.buying_price = request.POST.get('buying_price')
+            part.selling_price = request.POST.get('selling_price')
             part.minimum_stock_level = request.POST.get('minimum_stock_level', 5)
             part.save()
             
@@ -169,7 +173,8 @@ def used_part_create(request):
                 category=None,
                 description=request.POST.get('description') or None,
                 condition=request.POST.get('condition', 'good'),
-                whole_price=request.POST.get('whole_price'),
+                whole_buying_price=request.POST.get('whole_buying_price'),
+                whole_selling_price=request.POST.get('whole_selling_price'),
                 initial_quantity=initial_qty,
                 current_quantity=initial_qty,
                 can_be_broken_down=can_breakdown,
@@ -177,7 +182,8 @@ def used_part_create(request):
             
             # Create components if provided
             if can_breakdown:
-                component_prices = request.POST.getlist('component_price[]')
+                component_buying_prices = request.POST.getlist('component_buying_price[]')
+                component_selling_prices = request.POST.getlist('component_selling_price[]')
                 component_quantities = request.POST.getlist('component_quantity[]')
                 
                 for i, name in enumerate(component_names):
@@ -185,7 +191,8 @@ def used_part_create(request):
                         Component.objects.create(
                             used_spare_part=part,
                             name=name,
-                            unit_price=component_prices[i] if i < len(component_prices) else 0,
+                            buying_price=component_buying_prices[i] if i < len(component_buying_prices) else 0,
+                            selling_price=component_selling_prices[i] if i < len(component_selling_prices) else 0,
                             initial_quantity=component_quantities[i] if i < len(component_quantities) else 1,
                             current_quantity=component_quantities[i] if i < len(component_quantities) else 1,
                         )
@@ -214,7 +221,8 @@ def used_part_edit(request, pk):
             part.name = request.POST.get('name')
             part.description = request.POST.get('description') or None
             part.condition = request.POST.get('condition', 'good')
-            part.whole_price = request.POST.get('whole_price')
+            part.whole_buying_price = request.POST.get('whole_buying_price')
+            part.whole_selling_price = request.POST.get('whole_selling_price')
             part.save()
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -272,7 +280,8 @@ def components_json(request, used_part_id):
     components_data = [{
         'id': comp.id,
         'name': comp.name,
-        'unit_price': float(comp.unit_price),
+        'buying_price': float(comp.buying_price),
+        'selling_price': float(comp.selling_price),
         'initial_quantity': comp.initial_quantity,
         'sold_quantity': comp.sold_quantity,
         'current_quantity': comp.current_quantity,
@@ -294,7 +303,8 @@ def component_create(request, used_part_id):
                 used_spare_part=used_part,
                 name=request.POST.get('name'),
                 description=request.POST.get('description') or None,
-                unit_price=request.POST.get('unit_price'),
+                buying_price=request.POST.get('buying_price'),
+                selling_price=request.POST.get('selling_price'),
                 initial_quantity=request.POST.get('initial_quantity', 1),
                 current_quantity=request.POST.get('current_quantity', 1),
             )
@@ -321,7 +331,8 @@ def component_edit(request, pk):
         try:
             component.name = request.POST.get('name')
             component.description = request.POST.get('description') or None
-            component.unit_price = request.POST.get('unit_price')
+            component.buying_price = request.POST.get('buying_price')
+            component.selling_price = request.POST.get('selling_price')
             component.current_quantity = request.POST.get('current_quantity')
             component.save()
             
@@ -403,3 +414,70 @@ def add_stock(request, product_type, pk):
         return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+
+
+@login_required(login_url='login')
+def stock_releases(request):
+    """View authorized stock releases by month"""
+    if request.user.role != 'stock':
+        messages.error(request, 'You do not have permission to access this page')
+        return redirect('login')
+    
+    # Get month and year from query params, default to current month
+    try:
+        year = int(request.GET.get('year', datetime.now().year))
+        month = int(request.GET.get('month', datetime.now().month))
+        current_date = datetime(year, month, 1)
+    except (ValueError, TypeError):
+        current_date = datetime.now().replace(day=1)
+        year = current_date.year
+        month = current_date.month
+    
+    # Calculate start and end of month
+    start_date = current_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    end_date = (start_date + relativedelta(months=1)) - timedelta(seconds=1)
+    
+    # Get authorized sales for the month
+    authorizations = StockAuthorization.objects.filter(
+        authorized_at__gte=start_date,
+        authorized_at__lte=end_date
+    ).select_related('sale', 'authorized_by').order_by('-authorized_at')
+    
+    # Calculate totals
+    total_authorizations = authorizations.count()
+    total_items_released = 0
+    total_value = 0
+    
+    releases_data = []
+    for auth in authorizations:
+        sale = auth.sale
+        items_count = sum(item.quantity for item in sale.items.all())
+        total_items_released += items_count
+        total_value += float(sale.total_amount)
+        
+        releases_data.append({
+            'authorization': auth,
+            'sale': sale,
+            'items_count': items_count,
+        })
+    
+    # Calculate previous and next month
+    prev_month = start_date - relativedelta(months=1)
+    next_month = start_date + relativedelta(months=1)
+    
+    context = {
+        'user': request.user,
+        'releases': releases_data,
+        'current_month': start_date.strftime('%B %Y'),
+        'current_year': year,
+        'current_month_num': month,
+        'prev_year': prev_month.year,
+        'prev_month': prev_month.month,
+        'next_year': next_month.year,
+        'next_month': next_month.month,
+        'total_authorizations': total_authorizations,
+        'total_items_released': total_items_released,
+        'total_value': total_value,
+    }
+    
+    return render(request, 'stock_releases.html', context)

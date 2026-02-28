@@ -30,4 +30,7 @@ urlpatterns = [
     
     # Stock Management
     path('add-stock/<str:product_type>/<int:pk>/', views.add_stock, name='add_stock'),
+    
+    # Stock Releases
+    path('stock-releases/', views.stock_releases, name='stock_releases'),
 ]
